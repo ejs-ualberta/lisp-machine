@@ -96,27 +96,10 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
     return Status;
   }
 
+  /* Red = 0x00FF0000; */
+  /* Green = 0x0000FF00; */
+  /* Blue = 0x000000FF; */
   fb_start = (UINTN*)gop->Mode->FrameBufferBase;
-  for (int i = 0; i < 10; ++i){
-    for (int j = 0; j < b_hres; ++j){
-      *(fb_start + i * px_per_line + j) = 0x00FF0000;
-    }
-  }
-  for (int i = 10; i < 20; ++i){
-    for (int j = 0; j < b_hres; ++j){
-      *(fb_start + i * px_per_line + j) = 0x0000FF00;
-    }
-  }
-  for (int i = 20; i < 30; ++i){
-    for (int j = 0; j < b_hres; ++j){
-      *(fb_start + i * px_per_line + j) = 0x000000FF;
-    }
-  }
-  for (int i = 30; i < 40; ++i){
-    for (int j = 0; j < b_hres; ++j){
-      *(fb_start + i * px_per_line + j) = 0xFFFFFFFF;
-    }
-  }
 
   /* Get Memory map */
   UINTN map_sz = 0, map_key, desc_sz = 0;
