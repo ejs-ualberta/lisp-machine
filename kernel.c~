@@ -1,0 +1,70 @@
+#include <stdint.h>
+#include <efi.h>
+#include <efilib.h>
+
+EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
+{
+  EFI_STATUS Status;
+  EFI_INPUT_KEY Key;
+
+  /* Store the system table in a global variable */
+  ST = SystemTable;
+
+  /* Disable watchdog timer */
+  /* SystemTable->BootServices->SetWatchdogTimer(0, 0, 0, NULL); */
+
+  /* Clear screen. */
+  /* for (int i = 0; i < 24; ++i){ */
+  /*   for (int j = 0; j < 80; ++j){ */
+  /*     Status = ST->ConOut->OutputString(ST->ConOut, L" "); */
+  /*     if (EFI_ERROR(Status)) */
+  /* 	return Status; */
+  /*   } */
+  /*   Status = ST->ConOut->OutputString(ST->ConOut, L"\r\n"); */
+  /*   if (EFI_ERROR(Status)) */
+  /*     return Status; */
+  /* } */
+
+  //Status = ST->ConOut->OutputString(ST->ConOut, L"Hello World\n\r");
+  //if (EFI_ERROR(Status))
+  //  return Status;
+
+  /* /\* Flush input buffer to ignore any previous keystrokes *\/ */
+  /* Status = ST->ConIn->Reset(ST->ConIn, FALSE); */
+  /* if (EFI_ERROR(Status)) */
+  /*   return Status; */
+
+  /* /\* Wait for key press *\/ */
+  /* while ((Status = ST->ConIn->ReadKeyStroke(ST->ConIn, &Key)) == EFI_NOT_READY) ; */
+
+  /* Get a handle to the GOP */
+  EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+  Status = ST->BootServices->HandleProtocol( ST->ConsoleOutHandle, 
+					     &gEfiGraphicsOutputProtocolGuid, 
+					     (void **) &gop);
+  if (EFI_ERROR(Status) || gop == NULL) {return Status;}
+
+
+  /* Get memory map then exit boot services*/
+  UINTN map_sz = 0, map_key, desc_sz = 0;
+  UINT32 desc_vn = 0;
+  EFI_MEMORY_DESCRIPTOR * Map;
+
+  Status = ST->BootServices->GetMemoryMap(&map_sz, Map, &map_key, &desc_sz, &desc_vn);
+  do {
+    Status = ST->BootServices->AllocatePool(EfiLoaderData, map_sz, (void**)&Map);
+    Status = ST->BootServices->GetMemoryMap(&map_sz, Map, &map_key, &desc_sz, &desc_vn);
+    if (Status == EFI_BUFFER_TOO_SMALL){
+      ST->BootServices->FreePool(Map);
+      ++map_sz;
+    }
+  } while(Status != EFI_SUCCESS);
+
+  Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
+
+
+  /* Build os here */
+  while(1){};
+  
+  return Status;
+}
