@@ -49,9 +49,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 
   /* Get a handle to the GOP */
   EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
-  Status = ST->BootServices->HandleProtocol( ST->ConsoleOutHandle, 
-					     &gEfiGraphicsOutputProtocolGuid, 
-					     (void **) &gop);
+  Status = ST->BootServices->LocateProtocol(&gEfiGraphicsOutputProtocolGuid,
+					    NULL,
+					    (VOID **) &gop);
   if (EFI_ERROR(Status) || gop == NULL) {
     ST->ConOut->OutputString(ST->ConOut, L"Could not get GOP handle.\r\n");
     return Status;
