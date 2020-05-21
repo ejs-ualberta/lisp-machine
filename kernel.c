@@ -57,12 +57,13 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
     return Status;
   }
 
+  UINTN * fb_start = 0; 
   UINTN b_hres = 0;    
   UINTN b_vres = 0;
   UINTN screen_mode = 0;
   UINTN px_mode = 0;
-  UINTN max_mode = 0;
-  max_mode = gop->Mode->MaxMode;
+  UINTN px_per_line = 0;
+  UINTN max_mode = gop->Mode->MaxMode;
   for (UINTN i = 0; i < max_mode; ++i){
     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION * info;
     UINTN info_sz;
@@ -80,6 +81,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
       b_vres = vres;
       screen_mode = i;
       px_mode = info->PixelFormat;
+      px_per_line = info->PixelsPerScanLine;
     }
   }
 
@@ -94,6 +96,27 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
     return Status;
   }
 
+  fb_start = (UINTN*)gop->Mode->FrameBufferBase;
+  for (int i = 0; i < 10; ++i){
+    for (int j = 0; j < b_hres; ++j){
+      *(fb_start + i * px_per_line + j) = 0x00FF0000;
+    }
+  }
+  for (int i = 10; i < 20; ++i){
+    for (int j = 0; j < b_hres; ++j){
+      *(fb_start + i * px_per_line + j) = 0x0000FF00;
+    }
+  }
+  for (int i = 20; i < 30; ++i){
+    for (int j = 0; j < b_hres; ++j){
+      *(fb_start + i * px_per_line + j) = 0x000000FF;
+    }
+  }
+  for (int i = 30; i < 40; ++i){
+    for (int j = 0; j < b_hres; ++j){
+      *(fb_start + i * px_per_line + j) = 0xFFFFFFFF;
+    }
+  }
 
   /* Get Memory map */
   UINTN map_sz = 0, map_key, desc_sz = 0;
