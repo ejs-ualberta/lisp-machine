@@ -57,7 +57,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
     return Status;
   }
 
-  UINTN * fb_start = 0; 
+  uint32_t * fb_start = 0; 
   UINTN b_hres = 0;    
   UINTN b_vres = 0;
   UINTN screen_mode = 0;
@@ -99,8 +99,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
   /* Red = 0x00FF0000; */
   /* Green = 0x0000FF00; */
   /* Blue = 0x000000FF; */
-  fb_start = (UINTN*)gop->Mode->FrameBufferBase;
+  fb_start = (uint32_t *)gop->Mode->FrameBufferBase;
 
+  
   /* Get Memory map */
   UINTN map_sz = 0, map_key, desc_sz = 0;
   UINT32 desc_vn = 0;
