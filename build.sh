@@ -24,4 +24,4 @@ cp fat.img iso
 xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o os.iso iso
 rm -rf ./iso
 rm ./fat.img ./BOOTX64.EFI
-qemu-system-x86_64 -L /usr/share/ovmf -bios OVMF.fd -cdrom os.iso
+qemu-system-x86_64 -L /usr/share/ovmf -bios OVMF.fd -cdrom os.iso #-device VGA,edid=on,xres=1366,yres=768 # (For when qemu has edid support)

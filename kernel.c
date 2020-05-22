@@ -14,7 +14,7 @@
 /*     return 1; */
 /*   } */
 
-/*   UINTN i = 0;  */
+/*   UINTN i = 0; */
 /*   for (; num; ++i){ */
 /*     if (i >= buf_sz - 1){return -1;} */
 /*     UINTN digit = num % base; */
@@ -40,6 +40,11 @@
 /* } */
 
 
+void shutdown(void){
+  ST->RuntimeServices->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, NULL);
+}
+
+
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
   EFI_STATUS Status;
   EFI_INPUT_KEY Key;
@@ -51,12 +56,21 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
   EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
   Status = ST->BootServices->LocateProtocol(&gEfiGraphicsOutputProtocolGuid,
 					    NULL,
-					    (VOID **) &gop);
+					    (void **)&gop);
   if (EFI_ERROR(Status) || gop == NULL) {
     ST->ConOut->OutputString(ST->ConOut, L"Could not get GOP handle.\r\n");
     return Status;
   }
 
+  /* TODO: properly get screen size (for booting on real hardware)*/
+  /* EFI_EDID_ACTIVE_PROTOCOL * edid_ap; */
+  /* Status = ST->BootServices->LocateProtocol(&gEfiEdidActiveProtocolGuid, NULL, (void **)&edid_ap); */
+  /* if (EFI_ERROR(Status) || edid_ap == NULL) { */
+  /*   ST->ConOut->OutputString(ST->ConOut, L"Could not get EDID handle.\r\n"); */
+  /*   return Status; */
+  /* } */
+
+  /* Note: this whole section needs updating if/when booting on real hardware someday. */
   uint32_t * fb_start = 0; 
   UINTN b_hres = 0;    
   UINTN b_vres = 0;
@@ -102,7 +116,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
   fb_start = (uint32_t *)gop->Mode->FrameBufferBase;
 
   
-  /* Get Memory map */
+  /* Get Memory map and find the largest chunk of memory available*/
   UINTN map_sz = 0, map_key, desc_sz = 0;
   UINT32 desc_vn = 0;
   EFI_MEMORY_DESCRIPTOR * Map;
@@ -122,15 +136,33 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
     }
   } while(Status != EFI_SUCCESS);
 
+  UINTN * conv_mem_start = 0;
+  UINTN conv_mem_sz = 0;
+  for (int i = 0; i < map_sz / desc_sz; ++i){
+    if (Map[i].Type == EfiConventionalMemory){
+      UINTN mem_blk_sz = Map[i].NumberOfPages * 4096;
+      if (mem_blk_sz > conv_mem_sz){
+	conv_mem_sz = mem_blk_sz;
+	conv_mem_start = (UINTN*)Map[i].PhysicalStart;
+      }      
+    }
+  }
+  if (!conv_mem_start || !conv_mem_sz){
+    ST->ConOut->OutputString(ST->ConOut, L"No memory????\r\n");
+    return Status;
+  }
+
+
   Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
   if (EFI_ERROR(Status)){
     ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n");
     return Status;
   }
 
-
+  
   /* Build os here */
-  while(1){};
+  while (1){};
+  shutdown();
   
   return Status;
 }
