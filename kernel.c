@@ -346,37 +346,15 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   }
 
 
-  /* Status = ST->BootServices->ExitBootServices(ImageHandle, map_key); */
-  /* if (EFI_ERROR(Status)){ */
-  /*   ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n"); */
-  /*   return Status; */
-  /* } */
+  Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
+  if (EFI_ERROR(Status)){
+    ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n");
+    return Status;
+  }
 
 
   /* Build os here */
-  word * objs[256];
-
-  init_heap(conv_mem_start, 32);
-
-  hds * heap = (hds*)conv_mem_start;
-  word max_iter = 6;
-  word word_lim = max_iter * min_alloc_sz + hds_sz + fmds_sz;
-
-  for (word i = 0; i < max_iter; ++i){
-    objs[i] = alloc((word*)heap, 1);
-    for (word j = 0; j < word_lim; ++j){
-      print_uint(conv_mem_start[j]);spc();
-    }nl();
-  }nl();nl();
-
-  free((word*)heap, objs[3]);
-  free((word*)heap, objs[4]);
-  free((word*)heap, objs[5]);
-
-  for (word j = 0; j < word_lim; ++j){
-    print_uint(conv_mem_start[j]);spc();
-  }nl();
-
+  //init_heap(conv_mem_start, conv_mem_sz / sizeof(word));
 
   while (1){};
   shutdown();
