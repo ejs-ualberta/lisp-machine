@@ -11,7 +11,7 @@ LDFLAGS='-target x86_64-unknown-windows
 clang $CFLAGS -c -o kernel.o kernel.c
 clang $CFLAGS -c -o data.o gnu-efi*/lib/data.c
 clang $LDFLAGS -o BOOTX64.EFI kernel.o data.o
-#rm ./kernel.o ./data.o
+rm ./kernel.o ./data.o
 
 dd if=/dev/zero of=fat.img bs=1k count=64000
 mkfs.vfat fat.img -F 32
