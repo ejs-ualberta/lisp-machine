@@ -1,6 +1,6 @@
 #include "config.h"
 
-//NOTE: The datastructures here depend on the memory allocator leaving the size of the allocated memory just before the mem.
+//NOTE: Some of the datastructures here depend on the memory allocator leaving the size of the allocated memory just before the mem.
 
 typedef struct Array_DS{
   word mem_sz;
@@ -28,7 +28,7 @@ word * array_append(word * heap, word * arr, word * item){
   word item_sz = handle->item_sz;
 
   if (used_sz + item_sz > mem_sz){
-    mem_addr = realloc(heap, (word*)handle, mem_sz + mem_sz/2);
+    mem_addr = realloc(heap, mem_addr, handle->mem_sz + mem_sz/2 + item_sz);
     if (!mem_addr){return (word*)0;}
     arr = mem_addr + Array_bsz;
     handle = (Array*)(mem_addr - 1);

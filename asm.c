@@ -12,8 +12,10 @@ const word opcode_uses_reg = ((word)1 << (bits - 1));
 
 typedef struct operation_data{
   word n_args;
-  uint8_t name[8];
+  word name[3];
 }op_data;
+
+const word op_data_sz = sizeof(op_data)/sizeof(word);
 
 enum reg_aliases{
   zr = num_regs - 9,
@@ -52,28 +54,30 @@ enum opcodes{
 //TODO: prevent immediate instructions where they don't make sense.
 //TODO: sign extend arguments on appropriate instructions.
 op_data instructions[n_instrs] = {
-  [ace]=(op_data){3, "ace"},
-  [ads]=(op_data){3, "ads"},
-  [sbs]=(op_data){3, "sbs"},
-  [mls]=(op_data){3, "mls"},
-  [mlu]=(op_data){3, "mlu"},
-  [dvs]=(op_data){3, "dvs"},
-  [dvu]=(op_data){3, "dvu"},
-  [and]=(op_data){3, "and"},
-  [orr]=(op_data){3, "orr"},
-  [xor]=(op_data){3, "xor"},
-  [nor]=(op_data){3, "nor"},
-  [shf]=(op_data){3, "shf"},
-  [ldr]=(op_data){3, "ldr"},
-  [str]=(op_data){3, "str"},
-  [jnc]=(op_data){3, "jnc"}, // NOTE: use status reg for uncond jump.
-  [exc]=(op_data){3, "exc"}, // interrupt number, argc, argv *
+  [ace]=(op_data){3, {'a', 'c', 'e'}},
+  [ads]=(op_data){3, {'a', 'd', 's'}},
+  [sbs]=(op_data){3, {'s', 'b', 's'}},
+  [mls]=(op_data){3, {'m', 'l', 's'}},
+  [mlu]=(op_data){3, {'m', 'l', 'u'}},
+  [dvs]=(op_data){3, {'d', 'v', 's'}},
+  [dvu]=(op_data){3, {'d', 'v', 'u'}},
+  [and]=(op_data){3, {'a', 'n', 'd'}},
+  [orr]=(op_data){3, {'o', 'r', 'r'}},
+  [xor]=(op_data){3, {'x', 'o', 'r'}},
+  [nor]=(op_data){3, {'n', 'o', 'r'}},
+  [shf]=(op_data){3, {'s', 'h', 'f'}},
+  [ldr]=(op_data){3, {'l', 'd', 'r'}},
+  [str]=(op_data){3, {'s', 't', 'r'}},
+  [jnc]=(op_data){3, {'j', 'n', 'c'}}, // NOTE: use sr for uncond jump.
+  [exc]=(op_data){3, {'e', 'x', 'c'}}, // interrupt number, argc, argv *
 };
 
 typedef struct label_addr{
   word * label;
   word lbl_addr;
 } lbl_info;
+
+const word lbl_info_sz = sizeof(lbl_info)/sizeof(word);
 
 
 word * compile(word * code, word code_sz){
