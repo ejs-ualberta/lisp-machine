@@ -23,12 +23,13 @@ word * array(word * heap, word size, word item_sz){
 word * array_append(word * heap, word * arr, word * item){
   word * mem_addr = arr - Array_bsz;
   Array * handle = (Array*)(mem_addr - 1);
-  word mem_sz = handle->mem_sz - Array_bsz;
+  word true_mem_sz = get_mem_sz(mem_addr);
+  word mem_sz = true_mem_sz - Array_bsz;
   word used_sz = handle->used_sz;
   word item_sz = handle->item_sz;
 
   if (used_sz + item_sz > mem_sz){
-    mem_addr = realloc(heap, mem_addr, handle->mem_sz + mem_sz/2 + item_sz);
+    mem_addr = realloc(heap, mem_addr, true_mem_sz  + mem_sz/2 + item_sz);
     if (!mem_addr){return (word*)0;}
     arr = mem_addr + Array_bsz;
     handle = (Array*)(mem_addr - 1);

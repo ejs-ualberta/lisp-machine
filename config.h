@@ -17,6 +17,7 @@ word * init_heap(word * heap_start, word heap_sz);
 word * alloc(word * heap, word mem_sz);
 void free(word * heap, word * addr);
 word * realloc(word * heap, word * addr, word mem_sz);
+word get_mem_sz(word * addr);
 
 // asm.c
 word * compile(word * code, word code_sz);

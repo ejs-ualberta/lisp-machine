@@ -158,3 +158,9 @@ word * realloc(word * heap, word * addr, word mem_sz){
   free(heap, addr);
   return new_addr;
 }
+
+
+word get_mem_sz(word * addr){
+  umds * used_mem = (umds*)(addr - umds_sz);
+  return used_mem->mem_sz - umds_sz;
+}
