@@ -8,6 +8,8 @@ LDFLAGS='-target x86_64-unknown-windows
         -Wl,-entry:efi_main 
         -Wl,-subsystem:efi_application 
         -fuse-ld=lld-link'
+
+clang $CFLAGS -c -o debug.o debug.c
 clang $CFLAGS -c -o datastructures.o datastructures.c
 clang $CFLAGS -c -o asm.o asm.c
 clang $CFLAGS -c -o alloc.o alloc.c

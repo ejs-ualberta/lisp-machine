@@ -148,6 +148,7 @@ void free(word * heap, word * addr){
 }
 
 
+//TODO: Make this better.
 word * realloc(word * heap, word * addr, word mem_sz){
   word * new_addr = alloc(heap, mem_sz);
   if (!new_addr){return 0;}

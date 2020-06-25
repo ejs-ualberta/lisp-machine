@@ -14,17 +14,6 @@ const word word_max = UINTMAX_MAX;
 
 word * global_heap_start;
 
-// Note: Use black magic to get maximum size from the umds associated with the object when expanding; No sense consuming another word.
-// TODO: Refcount attributes, e.g. cyclic (also add in manual ability to deallocate or cycle check)
-typedef struct object{
-  word refcount;
-  word type;
-  word size;
-  word contents[];
-}obj;
-
-const word obj_sz = sizeof(obj)/sizeof(word);
-
 
 void shutdown(void){
   ST->RuntimeServices->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, NULL);
@@ -147,7 +136,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
 
   /* Build os here */
-  global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word)); 
+  global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word));
   
   while (1){};
   shutdown();

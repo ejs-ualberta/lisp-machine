@@ -1,4 +1,11 @@
-int uintn_to_str(wchar_t * buf, UINTN buf_sz, UINTN num, UINTN base){
+#include <stdint.h>
+#include <efi.h>
+#include <efilib.h>
+
+#include "config.h"
+
+
+int uintn_to_str(wchar_t * buf, word buf_sz, word num, word base){
   if (buf_sz < 2){return -1;}
   if (num == 0){
     buf[0] = '0';
@@ -6,10 +13,10 @@ int uintn_to_str(wchar_t * buf, UINTN buf_sz, UINTN num, UINTN base){
     return 1;
   }
 
-  UINTN i = 0;
+  word i = 0;
   for (; num; ++i){
     if (i >= buf_sz - 1){return -1;}
-    UINTN digit = num % base;
+    word digit = num % base;
     digit += 48;
     if (digit >= 58){
       digit += 7;
@@ -31,7 +38,7 @@ int uintn_to_str(wchar_t * buf, UINTN buf_sz, UINTN num, UINTN base){
   return i+1;
 }
 
-void print_uint(UINTN val, UINTN base){
+void print_uint(word val, word base){
   wchar_t buf[65];
   uintn_to_str(buf, 65, val, base);
   ST->ConOut->OutputString(ST->ConOut, buf);
