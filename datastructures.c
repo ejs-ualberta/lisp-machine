@@ -55,6 +55,20 @@ word * array(word * heap, word size, word item_sz){
 }
 
 
+word * array_find(word * arr, word * start, word * item){
+    Array * array = (Array*)(arr - Array_bsz - 1);
+    word item_sz = array->item_sz;
+    for (word * ptr = start; ptr < start + array_len(arr) * item_sz; ptr += item_sz){
+      for (word i = 0; i < item_sz; ++i){
+	if (ptr[i] != item[i]){goto fail;}
+      }
+      return ptr;
+    fail:;
+    }
+    return (word*)0;
+}
+
+
 word * array_append(word * heap, word * arr, word * item){
   word * mem_addr = arr - Array_bsz;
   Array * handle = (Array*)(mem_addr - 1);
@@ -84,13 +98,13 @@ void array_delete(word * heap, word * arr){
 }
 
 
-word array_size(word * arr){
-  Array * array = (Array*)(arr - Array_bsz - 1);
-  return array->used_sz;
-}
-
-
 word array_capacity(word * arr){
   Array * array = (Array*)(arr - Array_bsz - 1);
   return array->mem_sz - Array_bsz - 1;
+}
+
+
+word array_len(word * arr){
+  Array * array = (Array*)(arr - Array_bsz - 1);
+  return array->used_sz / array->item_sz;
 }

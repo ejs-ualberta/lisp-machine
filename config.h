@@ -39,5 +39,9 @@ void object_delete(word * heap, word * obj);
 word * array(word * heap, word size, word item_sz);
 word * array_append(word * heap, word * arr, word * item);
 void array_delete(word * heap, word * arr);
-word array_size(word * arr);
 word array_capacity(word * arr);
+word array_len(word * arr);
+
+
+//util.c
+word strlen(const word * str);

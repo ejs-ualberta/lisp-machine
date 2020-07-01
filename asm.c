@@ -2,7 +2,8 @@
 
 const word opcode_name_len = 4;
 const word bits = sizeof(word) * 8;
-const word reg_des = 'r';
+const word reg_des[] = {(word)'r', 0};
+const word neg_sgn[] = {(word)'-', 0};
 const word opcode_len = 8; // How many bits to encode the opcode
 const word arg_size = 5; // How many bits to encode a register in an instruction
 const word opcode_start = bits - opcode_len;
@@ -75,38 +76,101 @@ op_data instructions[n_instrs] = {
 
 typedef struct label_addr{
   word * label;
-  word lbl_addr;
+  word addr;
 } lbl_info;
 
 const word lbl_info_sz = sizeof(lbl_info)/sizeof(word);
 
 
+word get_flx_op_mask(word n){
+  return ((word)-1) >> (opcode_len + (n ? (n-1) : 0) * arg_size);
+}
+
+
 word whitespace(word ch){
-  return ch == ' ' || ch == '\n' || ch == '\t';
+  return ch == ' ' || ch == '\n' || ch == '\t' || ch == '\0';
 }
 
 
 void ignore_whitespace(word * code, word code_sz, word * idx){
-  word i;
-  for (i = *idx; i < code_sz && whitespace(code[i]); ++i){}
+  word i = *idx;
+  for (; i < code_sz && whitespace(code[i]); ++i){}
   *idx = i;
 }
 
 
-word match_opcode(word * code, word code_sz, word * index){
+void ignore_non_whitespace(word * code, word code_sz, word * idx){
+  word i = *idx;
+  for (; i < code_sz && !whitespace(code[i]); ++i){}
+  *idx = i;
+}
+
+
+word expect_whitespace(word * code, word code_sz, word * idx){
+  word i = *idx;
+  if (i >= code_sz || !whitespace(code[i])){return 1;}
+  ignore_whitespace(code, code_sz, idx);
+  return 0;
+}
+
+
+word match_opcode(word * code, word code_sz, word * index, word * output){
   for (word i = 0; i < n_instrs; ++i){
-    word j = 0;
     word ch;
-    for (; (ch = instructions[i].name[j]); ++j){
-      word idx = *index + j;
-      if (idx > code_sz){return (word)-1;}
+    word idx = *index;
+    for (word j = 0; (ch = instructions[i].name[j]); ++j, ++idx){
+      if (idx >= code_sz){return (word)1;}
       if (ch != code[idx]){goto fail;}
     }
-    *index += j;
-    return i;
+    *index = idx;
+    *output = i;
+    return 0;
   fail:;
   }
-  return (word)-1;
+  return (word)1;
+}
+
+
+word expect_str(word * code, word code_sz, word * index, const word * str){
+  word val;
+  word i = 0;
+  word idx = *index;
+  for (; (val = str[i]); ++i, ++idx){
+    if (idx >= code_sz || code[idx] != val){return 1;}
+  }
+  *index = idx;
+  return 0;
+}
+
+
+word expect_hex_from_str(word * code, word code_sz, word * index, word max_val, word * output){
+  word res = 0;
+  word tmp = 0;
+  word idx = *index;
+  word i = 0;
+  for (; i < (sizeof(word) * 2) && idx < code_sz; ++idx, ++i){
+    tmp = code[idx];
+    if (tmp >= '0' && tmp <= '9'){
+      tmp -= '0';
+    }else if (tmp >= 'a' && tmp <= 'z'){
+      tmp = tmp - 'a' + 10;
+    }else if (tmp >= 'A' && tmp <= 'Z'){
+      tmp = tmp - 'A' + 10;
+    }else{
+      break;
+    }
+
+    word pval = (res << 4) | tmp;
+    if (pval > max_val){return 1;}
+    res = pval;
+  }
+
+  // Error if no valid characters read.
+  if (!i){return 1;}
+
+  *index = idx;
+  *output = res;
+  return 0;
 }
 
 
@@ -114,27 +178,93 @@ word match_opcode(word * code, word code_sz, word * index){
 word * compile(word * heap, word * code, word code_sz){
   // Use magic number to estimate of the amount of characters per instr;
   // opc arg arg arg imm\n
+  word * tmp_arr;
   word * arr = array(heap, code_sz / 32, 1);
   if (!arr){return (word*)0;}
 
-  word prgm_ctr = 0;
-  for (word idx = 0; idx < code_sz; ++idx){
-    ignore_whitespace(code, code_sz, &idx);
-    word opcode = match_opcode(code, code_sz, &idx);
-    if (opcode >= n_instrs){return (word*)0;}
-
-    word args[mx_reg_args];
-    word n_args = instructions[opcode].n_args;
-    for (word i = 0; i < n_args; ++i){
-      
-    } 
+  word * lbl_refs = array(heap, 16, lbl_info_sz);
+  if (!lbl_refs){
+    array_delete(heap, arr);
+    return (word*)0;
   }
 
-  /* //TODO: Make sure interpreter asm code sets the type. */
-  /* word * asm_fn = object(heap, (word*)0, array_size(arr), arr, array_size(arr)); */
-  /* array_delete(heap, arr); */
-  /* return asm_fn; */
+  word prgm_ctr = 0;
+  word ret_code = 0;
+  word output = 0;
+  word idx = 0;
+  ignore_whitespace(code, code_sz, &idx);
+  for (; idx < code_sz; ++prgm_ctr){
+    word instr_begin = idx;
+
+    ret_code = match_opcode(code, code_sz, &idx, &output);
+    if (ret_code){goto is_label;}
+    ret_code = expect_whitespace(code, code_sz, &idx);
+    if (ret_code){goto is_label;}
+
+    word instr = output << opcode_start;
+    word instr_idx = opcode_start;
+    word n_args = instructions[output].n_args;
+    // Handle all args except the last one, could be immediate val.
+    for (word i = 0; i < (n_args ? (n_args - 1) : 0); ++i){
+      ret_code = expect_str(code, code_sz, &idx, reg_des);
+      if (ret_code){goto error;}
+      ret_code = expect_hex_from_str(code, code_sz, &idx, num_regs, &output);
+      if (ret_code){goto error;}
+      instr_idx -= arg_size;
+      instr |= (output << instr_idx);
+      ret_code = expect_whitespace(code, code_sz, &idx);
+      if (ret_code){goto error;}
+    }
+    if (n_args){
+      word not_neg = expect_str(code, code_sz, &idx, neg_sgn);
+      ret_code = expect_hex_from_str(code, code_sz, &idx, get_flx_op_mask(n_args), &output);
+      if (ret_code){
+	if (!not_neg){idx -= strlen(neg_sgn);}
+	ret_code = expect_str(code, code_sz, &idx, reg_des);
+	ret_code |= expect_hex_from_str(code, code_sz, &idx, num_regs, &output);
+	if (ret_code){
+	  idx -= strlen(reg_des);
+	  lbl_info l_info = {code + idx, prgm_ctr};
+	  tmp_arr = array_append(heap, lbl_refs, (word*)&l_info);
+	  if (!tmp_arr){goto error;}
+	  lbl_refs = tmp_arr;
+	  ignore_non_whitespace(code, code_sz, &idx);
+	}else{
+	  instr_idx -= arg_size;
+	  instr |= (output << instr_idx);
+	}
+      }else{
+	if (!not_neg){
+	  output = (~output + 1) & get_flx_op_mask(n_args);
+	}
+	instr |= output;
+      }
+    }
+
+    tmp_arr = array_append(heap, arr, &instr);
+    if (!tmp_arr){goto error;}
+    arr = tmp_arr;
+    ignore_whitespace(code, code_sz, &idx);
+    continue;
+
+  is_label:
+    idx = instr_begin;
+    ignore_non_whitespace(code, code_sz, &idx);
+    //TODO
+  }
+
+  for (word i = 0; i < array_len(lbl_refs); ++i){
+    lbl_info * l_info = (lbl_info*)lbl_refs;
+    //arr[l_info->addr] |= TODO
+  }
+
+  array_delete(heap, lbl_refs);
   return arr;
+
+ error:
+  array_delete(heap, arr);
+  array_delete(heap, lbl_refs);
+  return 0;
 }
 
 
