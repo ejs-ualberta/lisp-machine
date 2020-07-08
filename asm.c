@@ -83,7 +83,7 @@ const word lbl_info_sz = sizeof(lbl_info)/sizeof(word);
 
 
 word get_flx_op_mask(word n){
-  return ((word)-1) >> (opcode_len + (n ? (n-1) : 0) * arg_size);
+  return ((word)-1) >> (opcode_len + n * arg_size);
 }
 
 
@@ -223,13 +223,15 @@ word * compile(word * heap, word * code, word code_sz){
   word prgm_ctr = 0;
   word idx = 0;
   ignore_whitespace(code, code_sz, &idx);
-  for (; idx < code_sz; ++prgm_ctr){
+  for (; idx < code_sz;){
     // In case of failure parsing, provide a point to go back to.
     word instr_begin = idx;
 
     // Check if the token is just a number. If so append it to arr.
     ret_code = expect_hex_from_str(code, code_sz, &idx, (word)-1, &output);
+    ret_code |= expect_whitespace_or_end(code, code_sz, &idx);
     if (ret_code){
+      idx = instr_begin;
       ret_code = match_opcode(code, code_sz, &idx, &output);
       if (ret_code){goto is_label;}
       // If an opcode was found but no whitespace comes after, it could be a label.
@@ -249,6 +251,7 @@ word * compile(word * heap, word * code, word code_sz){
     word instr = output << opcode_start;
     word instr_idx = opcode_start;
     word n_args = instructions[output].n_args;
+    print_uint(instr, 2);nl(1);
     // Handle all args except the last one, could be immediate val.
     for (word i = 0; i < (n_args ? (n_args - 1) : 0); ++i){
       ret_code = expect_str(code, code_sz, &idx, reg_des);
@@ -260,6 +263,7 @@ word * compile(word * heap, word * code, word code_sz){
       ret_code = expect_whitespace(code, code_sz, &idx);
       if (ret_code){goto error;}
     }
+    print_uint(instr, 2);nl(1);
     // Check if there is one or more args required. The last one can either be a reg or an imm val.
     if (n_args){
       // If parsing the last arg fails, provide a place to return to.
@@ -301,14 +305,13 @@ word * compile(word * heap, word * code, word code_sz){
 	}
 	instr |= output;
       }
-
-      //print_uint(arr[prgm_ctr], 16);nl(1);
     }
 
     tmp_arr = array_append(heap, arr, &instr);
     if (!tmp_arr){goto error;}
     arr = tmp_arr;
     ignore_whitespace(code, code_sz, &idx);
+    ++prgm_ctr;
     continue;
 
   is_label:

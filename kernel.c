@@ -138,7 +138,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
 
   //TEST CODE BEGIN
-  char smallcode[] = "jnc r0 rF label\n label";
+  char smallcode[] = "exc rF rF rF\n l1 l2 db";
   word largecode[sizeof(smallcode) * sizeof(word)];
   for (int i = 0; i < sizeof(smallcode); ++i){
     largecode[i] = (word)smallcode[i];
@@ -147,7 +147,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   print_uint((word)bytecode, 16);nl(2);
   if (bytecode){
     for (int i = 0; i < array_len(bytecode); ++i){
-      print_uint(bytecode[i], 16);nl(1);
+      print_uint(bytecode[i], 2);nl(1);
     }
   }
   // TEST CODE END
