@@ -179,13 +179,13 @@ word expect_hex_from_str(word * code, word code_sz, word * index, word max_val, 
     tmp = code[idx];
     if (tmp >= '0' && tmp <= '9'){
       tmp -= '0';
-    }else if (tmp >= 'a' && tmp <= 'z'){
+    }else if (tmp >= 'a' && tmp <= 'f'){
       tmp = tmp - 'a' + 10;
-    }else if (tmp >= 'A' && tmp <= 'Z'){
+    }else if (tmp >= 'A' && tmp <= 'F'){
       tmp = tmp - 'A' + 10;
     }else{
       break;
-    }
+    } 
 
     word pval = (res << 4) | tmp;
     if (pval > max_val){return 1;}
@@ -301,6 +301,8 @@ word * compile(word * heap, word * code, word code_sz){
 	}
 	instr |= output;
       }
+
+      //print_uint(arr[prgm_ctr], 16);nl(1);
     }
 
     tmp_arr = array_append(heap, arr, &instr);

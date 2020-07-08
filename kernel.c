@@ -119,7 +119,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
       if (mem_blk_sz > conv_mem_sz){
 	conv_mem_sz = mem_blk_sz;
 	conv_mem_start = (UINTN*)Map[i].PhysicalStart;
-      }      
+      }
     }
   }
   if (!conv_mem_start || !conv_mem_sz){
@@ -128,16 +128,32 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   }
 
 
-  Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
+  //Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
   if (EFI_ERROR(Status)){
     ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n");
     return Status;
   }
 
-
-  /* Build os here */
   global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word));
+
+
+  //TEST CODE BEGIN
+  char smallcode[] = "jnc r0 rF label\n label";
+  word largecode[sizeof(smallcode) * sizeof(word)];
+  for (int i = 0; i < sizeof(smallcode); ++i){
+    largecode[i] = (word)smallcode[i];
+  }
+  word * bytecode = compile(global_heap_start, largecode, sizeof(smallcode));
+  print_uint((word)bytecode, 16);nl(2);
+  if (bytecode){
+    for (int i = 0; i < array_len(bytecode); ++i){
+      print_uint(bytecode[i], 16);nl(1);
+    }
+  }
+  // TEST CODE END
+
   
+  /* Build os here */
   while (1){};
   shutdown();
   
