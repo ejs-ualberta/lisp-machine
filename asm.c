@@ -10,7 +10,7 @@ const word opcode_start = bits - opcode_len;
 const word mx_reg_args = opcode_start / arg_size - 1;
 const word num_regs = (word)1 << arg_size; // Max number of regs that can be used with this encoding
 const word inst_mask = (((word)1 << (opcode_len-1))-1) << (bits - opcode_len); //leftmost bit tells whether the last arg is a reg or immediate val.
-const word opcode_uses_reg = ((word)1 << (bits - 1));
+const word instr_uses_reg = ((word)1 << (bits - 1));
 
 typedef struct operation_data{
   word n_args;
@@ -92,6 +92,27 @@ word whitespace(word ch){
 }
 
 
+word ref_eq(word * r1, word * r2, word * extra_params){
+  word * s1 = ((lbl_info*)r1)->label;
+  word * s2 = ((lbl_info*)r2)->label;
+  return s1 == s2;
+}
+
+
+word lbl_streq(word * s1, word * s2, word * max_ptr){
+  word * l1 = ((lbl_info*)s1)->label;
+  word * l2 = ((lbl_info*)s2)->label;
+  for (; l1 < max_ptr && l2 < max_ptr; ++l1, ++l2){
+    if (whitespace(*l1)){
+      if (!whitespace(*l2)){return 0;}
+      return 1;
+    }
+    if (*l1 != *l2){return 0;}
+  }
+  return 1;
+}
+
+
 void ignore_whitespace(word * code, word code_sz, word * idx){
   word i = *idx;
   for (; i < code_sz && whitespace(code[i]); ++i){}
@@ -111,6 +132,12 @@ word expect_whitespace(word * code, word code_sz, word * idx){
   if (i >= code_sz || !whitespace(code[i])){return 1;}
   ignore_whitespace(code, code_sz, idx);
   return 0;
+}
+
+
+word expect_whitespace_or_end(word * code, word code_sz, word * idx){
+  if (*idx >= code_sz || !expect_whitespace(code, code_sz, idx)){return 0;}
+  return 1;
 }
 
 
@@ -174,33 +201,51 @@ word expect_hex_from_str(word * code, word code_sz, word * index, word max_val, 
 }
 
 
-// code is just a regular word *, not a special datastructure. 
+// code is just a regular word *, not a special datastructure.
 word * compile(word * heap, word * code, word code_sz){
   // Use magic number to estimate of the amount of characters per instr;
   // opc arg arg arg imm\n
-  word * tmp_arr;
+
+  if (!code_sz || !heap || !code){return 0;}
+  
   word * arr = array(heap, code_sz / 32, 1);
   if (!arr){return (word*)0;}
 
   word * lbl_refs = array(heap, 16, lbl_info_sz);
-  if (!lbl_refs){
-    array_delete(heap, arr);
-    return (word*)0;
-  }
+  if (!lbl_refs){goto error2;}
 
-  word prgm_ctr = 0;
+  word * lbls = array(heap, 16, lbl_info_sz);
+  if (!lbls){goto error1;}
+
+  word * tmp_arr;
   word ret_code = 0;
   word output = 0;
+  word prgm_ctr = 0;
   word idx = 0;
   ignore_whitespace(code, code_sz, &idx);
   for (; idx < code_sz; ++prgm_ctr){
+    // In case of failure parsing, provide a point to go back to.
     word instr_begin = idx;
 
-    ret_code = match_opcode(code, code_sz, &idx, &output);
-    if (ret_code){goto is_label;}
-    ret_code = expect_whitespace(code, code_sz, &idx);
-    if (ret_code){goto is_label;}
+    // Check if the token is just a number. If so append it to arr.
+    ret_code = expect_hex_from_str(code, code_sz, &idx, (word)-1, &output);
+    if (ret_code){
+      ret_code = match_opcode(code, code_sz, &idx, &output);
+      if (ret_code){goto is_label;}
+      // If an opcode was found but no whitespace comes after, it could be a label.
+      ret_code = expect_whitespace(code, code_sz, &idx);
+      if (ret_code){goto is_label;}
+    }else{
+      // Check if there is no whitespace after (in which case it could be a label)
+      ret_code = expect_whitespace_or_end(code, code_sz, &idx);
+      if (ret_code){goto is_label;}
+      tmp_arr = array_append(heap, arr, &output);
+      if (!tmp_arr){goto error;}
+      arr = tmp_arr;
+      continue;
+    }
 
+    // Move the opcode into place.
     word instr = output << opcode_start;
     word instr_idx = opcode_start;
     word n_args = instructions[output].n_args;
@@ -215,25 +260,42 @@ word * compile(word * heap, word * code, word code_sz){
       ret_code = expect_whitespace(code, code_sz, &idx);
       if (ret_code){goto error;}
     }
+    // Check if there is one or more args required. The last one can either be a reg or an imm val.
     if (n_args){
+      // If parsing the last arg fails, provide a place to return to.
+      word reset_addr = idx;
+      // Detect if there is a negative sign, in case an imm val is given. If it succeeds, the error code is 0.
       word not_neg = expect_str(code, code_sz, &idx, neg_sgn);
+      // Try to get a hex value and ensure it is followed by a whitespace.
       ret_code = expect_hex_from_str(code, code_sz, &idx, get_flx_op_mask(n_args), &output);
+      ret_code |= expect_whitespace_or_end(code, code_sz, &idx);
+
+      // If failure, could be a reg or a label.
       if (ret_code){
-	if (!not_neg){idx -= strlen(neg_sgn);}
+	// Go back to the beginning of the last arg of the instr.
+	idx = reset_addr;
+	// Try to parse as a register.
 	ret_code = expect_str(code, code_sz, &idx, reg_des);
-	ret_code |= expect_hex_from_str(code, code_sz, &idx, num_regs, &output);
+        ret_code |= expect_hex_from_str(code, code_sz, &idx, num_regs, &output);
+        ret_code |= expect_whitespace_or_end(code, code_sz, &idx);
+
+	// If failure try to parse as a label.
 	if (ret_code){
-	  idx -= strlen(reg_des);
-	  lbl_info l_info = {code + idx, prgm_ctr};
+	  // Treat arg as a label. (Don't need to go back, reset_addr is the start of the label str)
+	  lbl_info l_info = {code + reset_addr, prgm_ctr};
 	  tmp_arr = array_append(heap, lbl_refs, (word*)&l_info);
 	  if (!tmp_arr){goto error;}
 	  lbl_refs = tmp_arr;
+	  // Ignore the rest of the label, if any of it hasn't been gone over yet.
 	  ignore_non_whitespace(code, code_sz, &idx);
 	}else{
+	  // If found to be a register, add it to the instr and modify the instr to show the last arg is a reg.
 	  instr_idx -= arg_size;
 	  instr |= (output << instr_idx);
+	  instr |= instr_uses_reg;
 	}
       }else{
+	// If a hex value was found, set it to be negative if a negative sign was found before it, then add it to the instr.
 	if (!not_neg){
 	  output = (~output + 1) & get_flx_op_mask(n_args);
 	}
@@ -249,21 +311,42 @@ word * compile(word * heap, word * code, word code_sz){
 
   is_label:
     idx = instr_begin;
+    lbl_info lbl = {code + idx, prgm_ctr};
+    if (!array_find(lbls, lbls, (word*)&lbl, ref_eq, (word*)0)){
+      tmp_arr = array_append(heap, lbls, (word*)&lbl);
+      if (!tmp_arr){goto error;}
+      lbls = tmp_arr;
+    }
+    // Move past the label str.
     ignore_non_whitespace(code, code_sz, &idx);
-    //TODO
+    // Move past any whitespace after the label str.
+    ignore_whitespace(code, code_sz, &idx);
+    // Now continue looping.
   }
 
+  // Resolve label refs.
   for (word i = 0; i < array_len(lbl_refs); ++i){
-    lbl_info * l_info = (lbl_info*)lbl_refs;
-    //arr[l_info->addr] |= TODO
+    lbl_info * refs = (lbl_info*)lbl_refs;
+    word ref_addr = (refs[i]).addr;
+    lbl_info * labels = (lbl_info*)lbls;
+    word * ptr = array_find(lbls, lbls, (word*)(refs + i), lbl_streq, code + code_sz);
+    if (ptr){
+      arr[ref_addr] |= ((lbl_info*)ptr)->addr;
+    }else{
+      goto error;
+    }
   }
 
+  array_delete(heap, lbls);
   array_delete(heap, lbl_refs);
   return arr;
 
  error:
-  array_delete(heap, arr);
+  array_delete(heap, lbls);
+ error1:
   array_delete(heap, lbl_refs);
+ error2:
+  array_delete(heap, arr);
   return 0;
 }
 

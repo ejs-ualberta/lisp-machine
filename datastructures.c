@@ -55,15 +55,13 @@ word * array(word * heap, word size, word item_sz){
 }
 
 
-word * array_find(word * arr, word * start, word * item){
+word * array_find(word * arr, word * start, word * item, word (*eq_fn)(word *, word *, word *), word * extra_params){
     Array * array = (Array*)(arr - Array_bsz - 1);
     word item_sz = array->item_sz;
-    for (word * ptr = start; ptr < start + array_len(arr) * item_sz; ptr += item_sz){
-      for (word i = 0; i < item_sz; ++i){
-	if (ptr[i] != item[i]){goto fail;}
+    for (word * ptr = start; ptr < arr + array_len(arr) * item_sz; ptr += item_sz){
+      if (eq_fn(item, ptr, extra_params)){
+	return ptr;
       }
-      return ptr;
-    fail:;
     }
     return (word*)0;
 }
