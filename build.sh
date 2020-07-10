@@ -24,6 +24,7 @@ mkfs.vfat fat.img -F 32
 mmd -i fat.img ::/EFI
 mmd -i fat.img ::/EFI/BOOT
 mcopy -i fat.img BOOTX64.EFI ::/EFI/BOOT
+mcopy -i fat.img kernel ::/kernel
 
 mkdir iso
 cp fat.img iso

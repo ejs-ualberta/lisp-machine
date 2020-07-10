@@ -15,7 +15,7 @@ typedef uint16_t wchar_t;
 
 // debug.c
 int uintn_to_str(wchar_t * buf, word buf_sz, word num, word base);
-void print_uint(word val, word base);
+void print_uint(word val, word base, word padding);
 void spc(word n);
 void nl(word n);
 
@@ -46,3 +46,4 @@ word array_len(word * arr);
 
 //util.c
 word strlen(const word * str);
+void * memcpy(void * dest, const void * src, size_t n);

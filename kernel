@@ -1,0 +1,4 @@
+l1 jnc rf rf l2
+l2 jnc rF rF l1
+l5 jnc rF rF l5
+jnc rF rF rF

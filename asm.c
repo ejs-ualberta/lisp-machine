@@ -32,7 +32,7 @@ enum reg_aliases{
 };
 
 enum opcodes{
-  ace, // Atomic CAS
+  acx, // Atomic CAS
   ads,
   sbs,
   mls,
@@ -56,7 +56,7 @@ enum opcodes{
 //TODO: prevent immediate instructions where they don't make sense.
 //TODO: sign extend arguments on appropriate instructions.
 op_data instructions[n_instrs] = {
-  [ace]=(op_data){3, {'a', 'c', 'e', '\0'}},
+  [acx]=(op_data){3, {'a', 'c', 'x', '\0'}},
   [ads]=(op_data){3, {'a', 'd', 's', '\0'}},
   [sbs]=(op_data){3, {'s', 'b', 's', '\0'}},
   [mls]=(op_data){3, {'m', 'l', 's', '\0'}},
@@ -136,7 +136,8 @@ word expect_whitespace(word * code, word code_sz, word * idx){
 
 
 word expect_whitespace_or_end(word * code, word code_sz, word * idx){
-  if (*idx >= code_sz || !expect_whitespace(code, code_sz, idx)){return 0;}
+  word ws = expect_whitespace(code, code_sz, idx);
+  if (!ws || *idx >= code_sz){return 0;}
   return 1;
 }
 
@@ -231,16 +232,27 @@ word * compile(word * heap, word * code, word code_sz){
     ret_code = expect_hex_from_str(code, code_sz, &idx, (word)-1, &output);
     ret_code |= expect_whitespace_or_end(code, code_sz, &idx);
     if (ret_code){
+      // In case a hex value was read but there was no whitespace after;
       idx = instr_begin;
       ret_code = match_opcode(code, code_sz, &idx, &output);
-      if (ret_code){goto is_label;}
       // If an opcode was found but no whitespace comes after, it could be a label.
-      ret_code = expect_whitespace(code, code_sz, &idx);
-      if (ret_code){goto is_label;}
+      ret_code |= expect_whitespace(code, code_sz, &idx);
+      if (ret_code){
+	idx = instr_begin;
+	lbl_info lbl = {code + idx, prgm_ctr};
+	if (!array_find(lbls, lbls, (word*)&lbl, ref_eq, (word*)0)){
+	  tmp_arr = array_append(heap, lbls, (word*)&lbl);
+	  if (!tmp_arr){goto error;}
+	  lbls = tmp_arr;
+	}
+	// Move past the label str.
+	ignore_non_whitespace(code, code_sz, &idx);
+	// Move past any whitespace after the label str.
+	ignore_whitespace(code, code_sz, &idx);
+	continue;
+      }
     }else{
       // Check if there is no whitespace after (in which case it could be a label)
-      ret_code = expect_whitespace_or_end(code, code_sz, &idx);
-      if (ret_code){goto is_label;}
       tmp_arr = array_append(heap, arr, &output);
       if (!tmp_arr){goto error;}
       arr = tmp_arr;
@@ -251,7 +263,6 @@ word * compile(word * heap, word * code, word code_sz){
     word instr = output << opcode_start;
     word instr_idx = opcode_start;
     word n_args = instructions[output].n_args;
-    print_uint(instr, 2);nl(1);
     // Handle all args except the last one, could be immediate val.
     for (word i = 0; i < (n_args ? (n_args - 1) : 0); ++i){
       ret_code = expect_str(code, code_sz, &idx, reg_des);
@@ -263,7 +274,6 @@ word * compile(word * heap, word * code, word code_sz){
       ret_code = expect_whitespace(code, code_sz, &idx);
       if (ret_code){goto error;}
     }
-    print_uint(instr, 2);nl(1);
     // Check if there is one or more args required. The last one can either be a reg or an imm val.
     if (n_args){
       // If parsing the last arg fails, provide a place to return to.
@@ -312,21 +322,6 @@ word * compile(word * heap, word * code, word code_sz){
     arr = tmp_arr;
     ignore_whitespace(code, code_sz, &idx);
     ++prgm_ctr;
-    continue;
-
-  is_label:
-    idx = instr_begin;
-    lbl_info lbl = {code + idx, prgm_ctr};
-    if (!array_find(lbls, lbls, (word*)&lbl, ref_eq, (word*)0)){
-      tmp_arr = array_append(heap, lbls, (word*)&lbl);
-      if (!tmp_arr){goto error;}
-      lbls = tmp_arr;
-    }
-    // Move past the label str.
-    ignore_non_whitespace(code, code_sz, &idx);
-    // Move past any whitespace after the label str.
-    ignore_whitespace(code, code_sz, &idx);
-    // Now continue looping.
   }
 
   // Resolve label refs.

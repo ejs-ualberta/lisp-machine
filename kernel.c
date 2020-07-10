@@ -90,8 +90,40 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /* Blue = 0x000000FF; */
   fb_start = (uint32_t*)gop->Mode->FrameBufferBase;
 
+
+  /* Open kernel code.*/
+  EFI_FILE * Kernel;
+  EFI_FILE * Disk;
+  EFI_LOADED_IMAGE_PROTOCOL * LoadedImage;
+  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL * FileSystem;
+  ST->BootServices->HandleProtocol(ImageHandle, &gEfiLoadedImageProtocolGuid, (void**)&LoadedImage);
+  ST->BootServices->HandleProtocol(LoadedImage->DeviceHandle, &gEfiSimpleFileSystemProtocolGuid, (void**)&FileSystem);
+
+  FileSystem->OpenVolume(FileSystem, &Disk);
+  Status = Disk->Open(Disk, &Kernel, L"kernel", EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
+  if (EFI_ERROR(Status)) {
+    ST->ConOut->OutputString(ST->ConOut, L"No kernel???");
+    return Status;
+  }
+
+  EFI_FILE_INFO k_info;
+  word k_info_sz = 0;
+  // What the heck??? I shouldn't have to do this. I should be able to use sizeof(k_info)
+  while (1){
+    Status = Kernel->GetInfo(Kernel, &gEfiFileInfoGuid, &k_info_sz, (void**)&k_info);
+    if (Status != EFI_BUFFER_TOO_SMALL){
+      break;
+    }
+    ++k_info_sz;
+  }
+
+  if (EFI_ERROR(Status)) {
+    ST->ConOut->OutputString(ST->ConOut, L"Could not get size of kernel.");
+    return Status;
+  }
+
   
-  /* Get Memory map and find the largest chunk of memory available*/
+  /* Get; Memory map and find the largest chunk of memory available*/
   UINTN map_sz = 0, map_key, desc_sz = 0;
   UINT32 desc_vn = 0;
   EFI_MEMORY_DESCRIPTOR * Map;
@@ -134,20 +166,37 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     return Status;
   }
 
+
   global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word));
 
 
-  //TEST CODE BEGIN
-  char smallcode[] = "exc rF rF rF\n l1 l2 db";
-  word largecode[sizeof(smallcode) * sizeof(word)];
-  for (int i = 0; i < sizeof(smallcode); ++i){
-    largecode[i] = (word)smallcode[i];
+  /* Load and compile kernel */
+  word * kernel_src = array(global_heap_start, 64, 1);
+  wchar_t contents[2];
+  word character = 0;
+  contents[1] = '\0';
+  word one = 1;
+  for (word i = 0; i < k_info.FileSize; ++i){
+    Status = Kernel->Read(Kernel, &one, contents);
+    if (EFI_ERROR(Status)){
+      ST->ConOut->OutputString(ST->ConOut, L"Could not load kernel.\r\n");
+      return Status;
+    }
+    character = (word)*contents;
+    kernel_src = array_append(global_heap_start, kernel_src, &character);
+    if (!kernel_src){
+      ST->ConOut->OutputString(ST->ConOut, L"Out of memory, kernel too big.\r\n");
+      return Status;
+    }
   }
-  word * bytecode = compile(global_heap_start, largecode, sizeof(smallcode));
-  print_uint((word)bytecode, 16);nl(2);
+
+  word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
+
+  //TEST CODE BEGIN
+  print_uint((word)bytecode, 16, 8);nl(2);
   if (bytecode){
     for (int i = 0; i < array_len(bytecode); ++i){
-      print_uint(bytecode[i], 2);nl(1);
+      print_uint(bytecode[i], 2, 64);nl(1);
     }
   }
   // TEST CODE END
@@ -155,6 +204,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   
   /* Build os here */
   while (1){};
+
+  Disk->Close(Kernel);
+  Disk->Close(Disk);
   shutdown();
   
   return Status;

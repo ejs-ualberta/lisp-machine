@@ -29,19 +29,24 @@ int uintn_to_str(wchar_t * buf, word buf_sz, word num, word base){
   }
 
   buf[i--] = '\0';
+  word retval = i;
   for (int j = 0; j < i; ++j, --i){
     wchar_t tmp = buf[j];
     buf[j] = buf[i];
     buf[i] = tmp;
   }
 
-  return i+1;
+  return retval+1;
 }
 
-void print_uint(word val, word base){
+void print_uint(word val, word base, word padding){
   wchar_t buf[65];
-  uintn_to_str(buf, 65, val, base);
+  word len = uintn_to_str(buf, 65, val, base);
+  for (word i = len; i < padding; ++i){
+    ST->ConOut->OutputString(ST->ConOut, L"0");
+  }
   ST->ConOut->OutputString(ST->ConOut, buf);
+  
 }
 
 void spc(word n){
