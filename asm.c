@@ -202,7 +202,7 @@ word expect_hex_from_str(word * code, word code_sz, word * index, word max_val, 
 }
 
 
-// code is just a regular word *, not a special datastructure.
+// code can be treated as just a regular word *, not a special datastructure, although it is an array.
 word * compile(word * heap, word * code, word code_sz){
   // Use magic number to estimate of the amount of characters per instr;
   // opc arg arg arg imm\n
@@ -230,6 +230,7 @@ word * compile(word * heap, word * code, word code_sz){
 
     // Check if the token is just a number. If so append it to arr.
     ret_code = expect_hex_from_str(code, code_sz, &idx, (word)-1, &output);
+    // Check if there is no whitespace after (in which case it could be a label)
     ret_code |= expect_whitespace_or_end(code, code_sz, &idx);
     if (ret_code){
       // In case a hex value was read but there was no whitespace after;
@@ -252,10 +253,10 @@ word * compile(word * heap, word * code, word code_sz){
 	continue;
       }
     }else{
-      // Check if there is no whitespace after (in which case it could be a label)
       tmp_arr = array_append(heap, arr, &output);
       if (!tmp_arr){goto error;}
       arr = tmp_arr;
+      ++prgm_ctr;
       continue;
     }
 

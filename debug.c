@@ -46,7 +46,6 @@ void print_uint(word val, word base, word padding){
     ST->ConOut->OutputString(ST->ConOut, L"0");
   }
   ST->ConOut->OutputString(ST->ConOut, buf);
-  
 }
 
 void spc(word n){

@@ -123,7 +123,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   }
 
   
-  /* Get; Memory map and find the largest chunk of memory available*/
+  /* Get memory map and find the largest chunk of memory available*/
   UINTN map_sz = 0, map_key, desc_sz = 0;
   UINT32 desc_vn = 0;
   EFI_MEMORY_DESCRIPTOR * Map;
