@@ -1,16 +1,21 @@
 #include "config.h"
+#include <stdatomic.h>
+
 
 const word opcode_name_len = 4;
-const word bits = sizeof(word) * 8;
 const word reg_des[] = {(word)'r', 0};
 const word neg_sgn[] = {(word)'-', 0};
+
+const word bits = sizeof(word) * 8;
 const word opcode_len = 8; // How many bits to encode the opcode
 const word arg_size = 5; // How many bits to encode a register in an instruction
 const word opcode_start = bits - opcode_len;
-const word mx_reg_args = opcode_start / arg_size - 1;
 const word num_regs = (word)1 << arg_size; // Max number of regs that can be used with this encoding
-const word inst_mask = (((word)1 << (opcode_len-1))-1) << (bits - opcode_len); //leftmost bit tells whether the last arg is a reg or immediate val.
+const word inst_mask = (((word)1 << (opcode_len-1))-1) << opcode_start; //leftmost bit tells whether the last arg is a reg or immediate val.
 const word instr_uses_reg = ((word)1 << (bits - 1));
+
+const word exc_cont_mask = instr_uses_reg;
+//const word mx_reg_args = opcode_start / arg_size - 1;
 
 typedef struct operation_data{
   word n_args;
@@ -20,14 +25,13 @@ typedef struct operation_data{
 const word op_data_sz = sizeof(op_data)/sizeof(word);
 
 enum reg_aliases{
-  zr = num_regs - 9,
-  rr, // result register, used for upper reg when multiplying/dividing.
-  sp,
+  sp = num_regs - 8, // result register, used for upper reg when multiplying/dividing.
   fp,
   bp, // pgrm base ptr
   lr, // link reg
-  pc,
+  rr, 
   ir, // ivt register
+  pc,
   sr, // status register (exec cont. bit, carry bits, etc)
 };
 
@@ -352,6 +356,35 @@ word * compile(word * heap, word * code, word code_sz){
 }
 
 
-void run(word bytecode, word bc_sz){
-  
+void run(word * bytecode, word bc_sz){
+  word regs[num_regs] = {0};
+  regs[sr] = exc_cont_mask;
+  regs[pc] = (word)bytecode;
+
+  while (regs[sr] & exc_cont_mask){
+    word prgm_ctr = regs[pc];
+    word instr = *bytecode + prgm_ctr;
+    word opcode = (instr & inst_mask) >> opcode_start;
+    switch (opcode){
+    case acx:
+      //atomic_cas()
+      break;
+    case ads:
+    case sbs:
+    case mls:
+    case mlu:
+    case dvs:
+    case dvu:
+    case and:
+    case orr:
+    case xor:
+    case nor:
+    case shf:
+    case ldr:
+    case str:
+    case jnc:
+    case exc:
+      break;
+    }
+  }
 }

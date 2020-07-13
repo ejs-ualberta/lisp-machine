@@ -200,7 +200,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     }
   }
   // TEST CODE END
-
   
   /* Build os here */
   while (1){};
