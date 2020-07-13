@@ -1,5 +1,4 @@
 #include "config.h"
-#include <stdatomic.h>
 
 
 const word opcode_name_len = 4;
@@ -15,7 +14,7 @@ const word inst_mask = (((word)1 << (opcode_len-1))-1) << opcode_start; //leftmo
 const word instr_uses_reg = ((word)1 << (bits - 1));
 
 const word exc_cont_mask = instr_uses_reg;
-//const word mx_reg_args = opcode_start / arg_size - 1;
+const word mx_reg_args = opcode_start / arg_size - 1;
 
 typedef struct operation_data{
   word n_args;
@@ -361,13 +360,16 @@ void run(word * bytecode, word bc_sz){
   regs[sr] = exc_cont_mask;
   regs[pc] = (word)bytecode;
 
+  word args[mx_reg_args] = 0;
+
   while (regs[sr] & exc_cont_mask){
     word prgm_ctr = regs[pc];
     word instr = *bytecode + prgm_ctr;
     word opcode = (instr & inst_mask) >> opcode_start;
+    // TODO: read args
     switch (opcode){
     case acx:
-      //atomic_cas()
+      //atomic_cas();
       break;
     case ads:
     case sbs:
@@ -386,5 +388,7 @@ void run(word * bytecode, word bc_sz){
     case exc:
       break;
     }
+    
+    ++prgm_ctr;
   }
 }
