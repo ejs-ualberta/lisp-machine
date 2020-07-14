@@ -49,3 +49,4 @@ word strlen(const word * str);
 void * memcpy(void * dest, const void * src, size_t n);
 void * memset(void * str, int c, size_t n);
 word atomic_cas(word * ptr, word cmp, word new);
+word nat_pow(word base, word exp);

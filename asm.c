@@ -11,9 +11,10 @@ const word arg_size = 5; // How many bits to encode a register in an instruction
 const word opcode_start = bits - opcode_len;
 const word num_regs = (word)1 << arg_size; // Max number of regs that can be used with this encoding
 const word inst_mask = (((word)1 << (opcode_len-1))-1) << opcode_start; //leftmost bit tells whether the last arg is a reg or immediate val.
-const word instr_uses_reg = ((word)1 << (bits - 1));
+const word sign_bit = ((word)1 << (bits - 1));
+const word exc_cont_mask = sign_bit;
+const word instr_uses_reg = sign_bit;
 
-const word exc_cont_mask = instr_uses_reg;
 const word mx_reg_args = opcode_start / arg_size - 1;
 
 typedef struct operation_data{
@@ -86,7 +87,7 @@ const word lbl_info_sz = sizeof(lbl_info)/sizeof(word);
 
 
 word get_flx_op_mask(word n){
-  return ((word)-1) >> (opcode_len + n * arg_size);
+  return ((word)-1) >> (opcode_len + (n ? (n-1) : 0) * arg_size);
 }
 
 
@@ -271,7 +272,7 @@ word * compile(word * heap, word * code, word code_sz){
     for (word i = 0; i < (n_args ? (n_args - 1) : 0); ++i){
       ret_code = expect_str(code, code_sz, &idx, reg_des);
       if (ret_code){goto error;}
-      ret_code = expect_hex_from_str(code, code_sz, &idx, num_regs, &output);
+      ret_code = expect_hex_from_str(code, code_sz, &idx, num_regs - 1, &output);
       if (ret_code){goto error;}
       instr_idx -= arg_size;
       instr |= (output << instr_idx);
@@ -284,8 +285,8 @@ word * compile(word * heap, word * code, word code_sz){
       word reset_addr = idx;
       // Detect if there is a negative sign, in case an imm val is given. If it succeeds, the error code is 0.
       word not_neg = expect_str(code, code_sz, &idx, neg_sgn);
-      // Try to get a hex value and ensure it is followed by a whitespace.
-      ret_code = expect_hex_from_str(code, code_sz, &idx, get_flx_op_mask(n_args), &output);
+      // Try to get a hex value and ensure it is followed by a whitespace. Shift over the mask by 1 to allow one bit for sign.
+      ret_code = expect_hex_from_str(code, code_sz, &idx, get_flx_op_mask(n_args) >> 1, &output);
       ret_code |= expect_whitespace_or_end(code, code_sz, &idx);
 
       // If failure, could be a reg or a label.
@@ -294,7 +295,7 @@ word * compile(word * heap, word * code, word code_sz){
 	idx = reset_addr;
 	// Try to parse as a register.
 	ret_code = expect_str(code, code_sz, &idx, reg_des);
-        ret_code |= expect_hex_from_str(code, code_sz, &idx, num_regs, &output);
+        ret_code |= expect_hex_from_str(code, code_sz, &idx, num_regs - 1, &output);
         ret_code |= expect_whitespace_or_end(code, code_sz, &idx);
 
 	// If failure try to parse as a label.
@@ -356,17 +357,39 @@ word * compile(word * heap, word * code, word code_sz){
 
 
 void run(word * bytecode, word bc_sz){
-  word regs[num_regs] = {0};
+  // Add 1 so there is a secret register for immediates (to simplify the code)
+  word regs[num_regs + 1] = {0};
   regs[sr] = exc_cont_mask;
   regs[pc] = (word)bytecode;
 
-  word args[mx_reg_args] = 0;
+  word arg_mask = ((word)1 << arg_size) - 1;
+  word args[mx_reg_args] = {0};
 
   while (regs[sr] & exc_cont_mask){
     word prgm_ctr = regs[pc];
     word instr = *bytecode + prgm_ctr;
     word opcode = (instr & inst_mask) >> opcode_start;
-    // TODO: read args
+    word n_args = instructions[opcode].n_args;
+    word uses_reg = (instr & instr_uses_reg);
+
+    if (!uses_reg && n_args){
+      word idx = opcode_len + (n_args - 1) * arg_size;
+      word imm = instr & get_flx_op_mask(n_args);
+      //Sign extend immediate
+      if (imm & (sign_bit >> idx)){
+	imm |= ((word)-1) << (bits - idx);
+      }
+      n_args -= 1;
+      // Place immediate in secret register, put idx of the secret register at the end of args.
+      regs[num_regs] = imm;
+      args[n_args] = num_regs;
+    }
+
+    instr >>= bits - (opcode_len + n_args * arg_size);
+    for (word i = n_args; i; --i, instr >>= arg_size){
+      args[i-1] = instr & arg_mask;
+    }
+
     switch (opcode){
     case acx:
       //atomic_cas();

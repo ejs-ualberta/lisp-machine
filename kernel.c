@@ -191,6 +191,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   }
 
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
+  //run(bytecode, )
 
   //TEST CODE BEGIN
   print_uint((word)bytecode, 16, 8);nl(2);

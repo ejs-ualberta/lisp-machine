@@ -41,3 +41,12 @@ word atomic_cas(word * ptr, word cmp, word new){
        );
  return output;
 }
+
+
+word nat_pow(word base, word exp){
+  word res = 1;
+  for (; exp; --exp){
+    res *= base;
+  }
+  return res;
+}
