@@ -3,7 +3,7 @@
 #include "stdint.h"
 
 
-#define MAX_HRES 1024
+#define MAX_HRES 1366
 #define MAX_VRES 768
 
 
@@ -42,11 +42,19 @@ word * array_append(word * heap, word * arr, word * item);
 void array_delete(word * heap, word * arr);
 word array_capacity(word * arr);
 word array_len(word * arr);
+word avl_tree_height(word * nd);
+word _avl_insert(word ** tr, word * nd, word (*cmp)(word*, word*));
+word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
+word avl_basic_cmp(word * n1, word * n2);
+void print_avl(word * tree, word space, word inc);
 
 
 //util.c
+word umax(word x, word y);
 word strlen(const word * str);
 void * memcpy(void * dest, const void * src, size_t n);
 void * memset(void * str, int c, size_t n);
 word atomic_cas(word * ptr, word cmp, word new);
 word nat_pow(word base, word exp);
+word abs(word x);
+word arithmetic_shift_right(word val, word n);

@@ -1,5 +1,11 @@
 #include "config.h"
 
+
+word umax(word x, word y){
+  return x < y ? y : x;
+}
+
+
 word strlen(const word * str){
   const word * s = str;
   for (; *str; ++str){}
@@ -49,4 +55,14 @@ word nat_pow(word base, word exp){
     res *= base;
   }
   return res;
+}
+
+
+word abs(word x){
+  return (x >> ((sizeof(word) * 8 - 1)) & 1) ? -x : x;
+}
+
+
+word arithmetic_shift_right(word val, word n){
+  return (val >> n) | (word)-1 << (sizeof(word)*8 - n);
 }

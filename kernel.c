@@ -201,6 +201,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     }
   }
   // TEST CODE END
+
+  word * tree = 0;
+  word test;
+  for (word i = 0; i < 13; ++i){test = avl_insert(global_heap_start, &tree, i, &avl_basic_cmp);}
+
+  print_avl(tree, 0, 2);
   
   /* Build os here */
   while (1){};
