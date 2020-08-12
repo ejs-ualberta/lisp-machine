@@ -1,7 +1,7 @@
 #include "config.h"
 
 
-word umax(word x, word y){
+word max(sword x, sword y){
   return x < y ? y : x;
 }
 

@@ -204,10 +204,14 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   word * tree = 0;
   word test;
-  for (word i = 0; i < 10; ++i){test = avl_insert(global_heap_start, &tree, i, &avl_basic_cmp);}
-  avl_delete(global_heap_start, &tree, 3, &avl_basic_cmp);
-  avl_delete(global_heap_start, &tree, 4, &avl_basic_cmp);
-  avl_delete(global_heap_start, &tree, 5, &avl_basic_cmp);
+  word nodes[80];
+    word * check_balance_factors(word * tr);
+  for (word i = 0; i < 20; ++i){test = _avl_insert(&tree, nodes + 4*i, i, &avl_basic_cmp);}
+  word * err = check_balance_factors(tree);
+  print_uint(err[3], 16, 0);nl(1);
+  /* avl_delete(global_heap_start, &tree, 3, &avl_basic_cmp); */
+  /* avl_delete(global_heap_start, &tree, 4, &avl_basic_cmp); */
+  /* avl_delete(global_heap_start, &tree, 5, &avl_basic_cmp); */
   /* avl_delete(global_heap_start, &tree, 6, &avl_basic_cmp); */
   print_avl(tree, 0, 2);
   

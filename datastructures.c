@@ -278,14 +278,23 @@ word avl_rotate_rl(word ** tr, word * node){
 word avl_tree_height(word * nd){
   AVL_Node * node = (AVL_Node *)nd;
   if (!node){return -1;}
-  return 1 + umax(avl_tree_height((word*)(node->left)), avl_tree_height((word*)(node->right)));
+  return 1 + max((sword)avl_tree_height((word*)(node->left)), (sword)avl_tree_height((word*)(node->right)));
 }
 
 
 // cmp must return one of -1, 0, 1.
-word _avl_insert(word ** tr, word * nd, word (*cmp)(word*, word*)){
+word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*)){
   AVL_Node * tree = (AVL_Node*)(*tr);
   AVL_Node * node = (AVL_Node*)nd;
+
+  if (!node){
+    return 1;
+  }
+
+  node->prev = 3;
+  node->left = 0;
+  node->right = 0;
+  node->data = data;
 
   if (!tree){
     *tr = (word*)node;
@@ -352,24 +361,21 @@ word _avl_insert(word ** tr, word * nd, word (*cmp)(word*, word*)){
     }else{
       set_balance_factor((word*)node, bf);
     }
- 
     child = node;
   }
+
   return 0;
 }
 
 
 word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
   AVL_Node ** tree = (AVL_Node**)tr;
-  AVL_Node * node = (AVL_Node*)alloc(heap, avl_node_sz);
+  word * node = alloc(heap, avl_node_sz);
   if (!node){
     return 1;
   }
-  node->prev = 3;
-  node->left = 0;
-  node->right = 0;
-  node->data = data;
-  word ret = _avl_insert(tr, (word*)node, cmp);
+
+  word ret = _avl_insert(tr, node, data, cmp);
   if (ret){
     free(heap, (word*)node);
   }
@@ -377,20 +383,13 @@ word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
 }
 
 
-word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
+word * _avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
   AVL_Node * tree = (AVL_Node*)*tr;
   AVL_Node node;
   node.data = data;
 
-  if (!tree){return 1;}
-
-  //If tree is the only node
-  AVL_Node * parent = get_parent(tree);
-  if (!parent && !(tree->left) && !(tree->right)){
-    *tr = 0;
-    free(heap, (word*)tree);
-    return 0;
-  }
+  word * ret = 0;
+  if (!tree){return ret;}
 
   for (word b = cmp((word*)tree, (word*)&node); b; b = cmp((word*)tree, (word*)&node)){
     switch (b){
@@ -401,9 +400,18 @@ word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
     case 1:
       tree = (AVL_Node*)(tree->right);
     }
-    if (!tree){return 1;}
+    if (!tree){return ret;}
   }
 
+  //If tree is the only node
+  AVL_Node * parent = get_parent(tree);
+  if (!parent && !(tree->left) && !(tree->right)){
+    *tr = 0;
+    ret = (word*)tree;
+    return ret;
+  }
+
+  
   AVL_Node * successor = (AVL_Node*)(tree->left);
   if (tree->right){
     successor = (AVL_Node*)(tree->right);
@@ -426,7 +434,7 @@ word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
     }
     child = (AVL_Node*)(successor->right);
     ((AVL_Node*)child)->prev = (word)parent | bf;
-    free(heap, (word*)successor);
+    ret = (word*)successor;
   }else{
     // tree must have a parent at this point, and tree must have no children. (tree is a leaf node)
     if (parent->left == (word)tree){
@@ -434,7 +442,7 @@ word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
     }else{
       parent->right = 0;
     }
-    free(heap, (word*)tree);
+    ret = (word*)tree;
   }
 
   AVL_Node * pp = 0;
@@ -455,12 +463,12 @@ word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
       }
     case -1:
       set_balance_factor((word*)parent, bf);
-      return 0;
+      return ret;
     case 0:
       set_balance_factor((word*)parent, bf);
     case 1:
       set_balance_factor((word*)parent, bf);
-      return 0;
+      return ret;
     case 2:
       if (balance_factor((word*)(parent->right)) == (word)-1){
 	avl_rotate_rl(tr, (word*)parent);
@@ -472,8 +480,19 @@ word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
     child = parent;
   }
 
-  return 0;
+  return ret;
 }
+
+
+word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
+  word * x = _avl_delete(heap, tr, data, cmp);
+  if (x){
+    free(heap, x);
+    return 0;
+  }
+  return 1;
+}
+
 
 word avl_basic_cmp(word * n1, word * n2){
   AVL_Node * node1 = (AVL_Node*)n1;
@@ -495,7 +514,34 @@ void print_avl(word * tree, word space, word inc){
   //spc(space);print_uint(tree, 16, 8);nl(1);
   spc(space);print_uint(tree[0] & 3, 16, 2);//nl(1);
   spc(1);print_uint(tree[3], 16, 2);nl(1);
-  nl(1);
   print_avl((word*)(node->right), space + inc, inc);
   print_avl((word*)(node->left), space, inc);
+}
+
+
+word * check_balance_factors(word * tr){
+  AVL_Node * tree = (AVL_Node*)tr;
+  if (!tree->left && !tree->right){return 0;}
+  word lh = avl_tree_height((word*)(tree->left));
+  word rh = avl_tree_height((word*)(tree->right));
+  word bf = balance_factor((word*)tree);
+  switch (bf){
+  case -1:
+    if (!(lh == rh + 1)){return (word*)tree;}
+    break;
+  case 0:
+    if (!(lh == rh)){return (word*)tree;}
+    break;
+  case 1:
+    if (!(lh + 1 == rh)){return (word*)tree;}
+  }
+  word * lerr = check_balance_factors((word*)(tree->left));
+  if (lerr){
+    return lerr;
+  }
+  word * rerr = check_balance_factors((word*)(tree->right));
+  if (rerr){
+    return rerr;
+  }
+  return 0;
 }
