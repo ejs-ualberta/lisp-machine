@@ -45,6 +45,7 @@ word array_len(word * arr);
 word avl_tree_height(word * nd);
 word _avl_insert(word ** tr, word * nd, word (*cmp)(word*, word*));
 word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
+word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_basic_cmp(word * n1, word * n2);
 void print_avl(word * tree, word space, word inc);
 
