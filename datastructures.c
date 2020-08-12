@@ -383,7 +383,7 @@ word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
 }
 
 
-word * _avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
+word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
   AVL_Node * tree = (AVL_Node*)*tr;
   AVL_Node node;
   node.data = data;
@@ -485,7 +485,7 @@ word * _avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)
 
 
 word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
-  word * x = _avl_delete(heap, tr, data, cmp);
+  word * x = _avl_delete(tr, data, cmp);
   if (x){
     free(heap, x);
     return 0;
