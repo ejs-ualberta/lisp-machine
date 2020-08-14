@@ -202,20 +202,27 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   }
   // TEST CODE END
 
+  word * err;
   word * tree = 0;
   word test;
   word nodes[30*4];
   word * check_balance_factors(word * tr);
-  for (word i = 0; i < 30; ++i){test = _avl_insert(&tree, nodes + 4*i, i, &avl_basic_cmp);}
-  word * err = check_balance_factors(tree);
-  print_uint(err[3], 16, 0);nl(1);
-  for (word i = 0; i < 10; ++i){test = _avl_delete(&tree, i, &avl_basic_cmp);}
+  for (word i = 1; i < 21; ++i){test = _avl_insert(&tree, nodes + 4*i, i, &avl_basic_cmp);}
+  for (word i = 1; i < 4; ++i){
+    err = _avl_delete(&tree, i, &avl_basic_cmp);
+    if (!err){print_uint(i, 16, 0);nl(1);}
+    err = check_balance_factors(tree);
+    if (err){print_uint(i, 16, 0);spc(1);break;}
+  }
+  /* err = _avl_delete(&tree, 0, &avl_basic_cmp); */
+  /* err = _avl_delete(&tree, 17, &avl_basic_cmp); */
+  /* print_uint(0xdeadbeef, 16, 0);nl(1); */
+  /* err = _avl_delete(&tree, 7, &avl_basic_cmp); */
+  /* err = avl_delete(global_heap_start, &tree, 2, &avl_basic_cmp); */
+  /* err = avl_delete(global_heap_start, &tree, 3, &avl_basic_cmp); */
+  /* print_uint(err[3], 16, 0); */nl(1);
   err = check_balance_factors(tree);
   print_uint(err[3], 16, 0);nl(1);
-  /* avl_delete(global_heap_start, &tree, 3, &avl_basic_cmp); */
-  /* avl_delete(global_heap_start, &tree, 4, &avl_basic_cmp); */
-  /* avl_delete(global_heap_start, &tree, 5, &avl_basic_cmp); */
-  /* avl_delete(global_heap_start, &tree, 6, &avl_basic_cmp); */
   print_avl(tree, 0, 2);
   
   /* Build os here */

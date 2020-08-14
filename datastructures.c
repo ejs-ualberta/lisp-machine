@@ -403,14 +403,6 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
     if (!tree){return ret;}
   }
 
-  //If tree is the only node
-  AVL_Node * parent = get_parent(tree);
-  if (!parent && !(tree->left) && !(tree->right)){
-    *tr = 0;
-    ret = (word*)tree;
-    return ret;
-  }
-
   
   AVL_Node * successor = (AVL_Node*)(tree->left);
   if (tree->right){
@@ -421,25 +413,35 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
   }
 
   AVL_Node * child = 0;
+  word bf = 0;
+  // Will start rebalancing tree from parent later.
+  AVL_Node * parent = get_parent(successor);
+  word pbf = balance_factor((word*)parent);
   if (successor){
     // successor must have a parent if it exists.
     tree->data = successor->data;
-    // Will start rebalancing tree from parent later.
-    parent = get_parent(successor);
-    word bf = get_balance_factor((word*)(successor->right));
+    child = (AVL_Node*)(successor->right);
+    word cbf = get_balance_factor((word*)child);
+    if (child){((AVL_Node*)child)->prev = (word)parent | cbf;}
     if (parent->left == (word)successor){
       parent->left = successor->right;
     }else{
       parent->right = successor->right;
     }
-    child = (AVL_Node*)(successor->right);
-    ((AVL_Node*)child)->prev = (word)parent | bf;
     ret = (word*)successor;
   }else{
+    parent = get_parent(tree);
+    pbf = balance_factor((word*)parent);
+    if (!parent){
+      *tr = (word*)0;
+      ret = (word*)tree;
+      return ret;
+    }
     // tree must have a parent at this point, and tree must have no children. (tree is a leaf node)
+
     if (parent->left == (word)tree){
       parent->left = 0;
-    }else{
+    }else if (parent->right == (word)tree){
       parent->right = 0;
     }
     ret = (word*)tree;
@@ -448,36 +450,51 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
   AVL_Node * pp = 0;
   for (; parent; parent = pp){
     pp = get_parent(parent);
-    word bf = 0;
-    if ((word)child == parent->left){
-      bf = 1 + balance_factor((word*)parent);
+    word bf = balance_factor((word*)parent);
+    word _bf = 0;
+    // Check right first in case child is null.
+    if ((word)child == parent->right){
+      if (bf == (word)-1){
+    	AVL_Node * l_child = (AVL_Node*)parent->left;
+    	_bf = balance_factor((word*)l_child);
+    	if (_bf == 1){
+    	  avl_rotate_lr(tr, (word*)parent);
+    	}else{
+    	  avl_rotate_right(tr, (word*)parent);
+    	}
+      }else{
+    	if (bf == 0){
+    	  set_balance_factor((word*)parent, -1);
+    	  break;
+    	}
+    	set_balance_factor((word*)parent, 0);
+        child = parent;
+    	continue;
+      }
     }else{
-      bf = (word)-1 + balance_factor((word*)parent);
-    }
-    switch (bf){
-    case -2:
-      if (balance_factor((word*)(parent->right)) == 1){
-	avl_rotate_lr(tr, (word*)parent);
+      AVL_Node * r_child = (AVL_Node*)parent->right;
+      _bf = balance_factor((word*)r_child);
+      if (bf == 1){
+    	if (_bf == (word)-1){
+    	  avl_rotate_rl(tr, (word*)parent);
+    	}else{
+    	  avl_rotate_left(tr, (word*)parent);
+    	}
       }else{
-	avl_rotate_right(tr, (word*)parent);
-      }
-    case -1:
-      set_balance_factor((word*)parent, bf);
-      return ret;
-    case 0:
-      set_balance_factor((word*)parent, bf);
-    case 1:
-      set_balance_factor((word*)parent, bf);
-      return ret;
-    case 2:
-      if (balance_factor((word*)(parent->right)) == (word)-1){
-	avl_rotate_rl(tr, (word*)parent);
-      }else{
-	avl_rotate_left(tr, (word*)parent);
+    	if (bf == 0){
+    	  set_balance_factor((word*)parent, 1);
+    	  break;
+    	}
+    	set_balance_factor((word*)parent, 0);
+    	child = parent;
+    	continue;
       }
     }
- 
-    child = parent;
+
+    if (!pp){
+      *tr = (word*)parent;
+      parent->prev = get_balance_factor((word*)parent);
+    }if (!_bf){break;}
   }
 
   return ret;
