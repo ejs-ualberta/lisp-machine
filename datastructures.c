@@ -490,11 +490,7 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
     	continue;
       }
     }
-
-    if (!pp){
-      *tr = (word*)parent;
-      parent->prev = get_balance_factor((word*)parent);
-    }if (!_bf){break;}
+    if (!_bf){break;}
   }
 
   return ret;
