@@ -242,25 +242,27 @@ word avl_rotate_lr(word ** tr, word * node){
   avl_rotate_left(tr, (word*)child);
   avl_rotate_right(tr, (word*)node);
   if (bf == 1) {
-    set_balance_factor((word*)node, (word)1);
-    set_balance_factor((word*)child, 0);
-  }else if (bf == (word)-1){
     set_balance_factor((word*)child, (word)-1);
     set_balance_factor((word*)node, 0);
+  }else if (bf == (word)-1){
+    set_balance_factor((word*)node, 1);
+    set_balance_factor((word*)child, 0);
   }else{
     set_balance_factor((word*)child, 0);
     set_balance_factor((word*)node, 0);
   }
+  word * pp = (word*)get_parent((AVL_Node*)node);
+  set_balance_factor(pp, 0);
   return 0;
 }
 
 
 word avl_rotate_rl(word ** tr, word * node){
-  AVL_Node * child = (AVL_Node*)(((AVL_Node*)node)->left);
-  AVL_Node * rl_child = (AVL_Node*)(child->right);
+  AVL_Node * child = (AVL_Node*)(((AVL_Node*)node)->right);
+  AVL_Node * rl_child = (AVL_Node*)(child->left);
   word bf = balance_factor((word*)rl_child);
-  avl_rotate_left(tr, (word*)child);
-  avl_rotate_right(tr, (word*)node);
+  avl_rotate_right(tr, (word*)child);
+  avl_rotate_left(tr, (word*)node);
   if (bf == 1) {
     set_balance_factor((word*)node, (word)-1);
     set_balance_factor((word*)child, 0);
@@ -271,6 +273,8 @@ word avl_rotate_rl(word ** tr, word * node){
     set_balance_factor((word*)child, 0);
     set_balance_factor((word*)node, 0);
   }
+  word * pp = (word*)get_parent((AVL_Node*)node);
+  set_balance_factor(pp, 0);
   return 0;
 }
 
@@ -343,7 +347,6 @@ word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*)){
     }else{
       bf = 1 + balance_factor((word*)node);
     }
-
     if (bf == (word)-2){
       if (balance_factor((word*)(node->left)) == (word)-1){
 	avl_rotate_right(tr, (word*)node);
@@ -538,6 +541,16 @@ word * check_balance_factors(word * tr){
   word lh = avl_tree_height((word*)(tree->left));
   word rh = avl_tree_height((word*)(tree->right));
   word bf = balance_factor((word*)tree);
+
+  word * lerr = check_balance_factors((word*)(tree->left));
+  if (lerr){
+    return lerr;
+  }
+  word * rerr = check_balance_factors((word*)(tree->right));
+  if (rerr){
+    return rerr;
+  }
+
   switch (bf){
   case -1:
     if (!(lh == rh + 1)){return (word*)tree;}
@@ -547,14 +560,6 @@ word * check_balance_factors(word * tr){
     break;
   case 1:
     if (!(lh + 1 == rh)){return (word*)tree;}
-  }
-  word * lerr = check_balance_factors((word*)(tree->left));
-  if (lerr){
-    return lerr;
-  }
-  word * rerr = check_balance_factors((word*)(tree->right));
-  if (rerr){
-    return rerr;
   }
   return 0;
 }
