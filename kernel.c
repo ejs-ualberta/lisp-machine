@@ -209,20 +209,21 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   word i = 1;
   word j = 1;
   word * check_balance_factors(word * tr);
-  for (i = 1; i < 20; ++i){test = _avl_insert(&tree, nodes + 4*i, 30 - i, &avl_basic_cmp);}
-  for (j = 1; j < 20; ++j){
-    err = _avl_delete(&tree, 30 - j, &avl_basic_cmp);
+  for (i = 1; i < 1; ++i){test = _avl_insert(&tree, nodes + 4*i, i, &avl_basic_cmp);}
+  for (j = 1; j < 1; ++j){
+    err = _avl_delete(&tree, j, &avl_basic_cmp);
     if (!err){print_uint(i, 16, 0);nl(1);}
     err = check_balance_factors(tree);
     if (err){print_uint(i, 16, 0);nl(1);break;}
   }
-  /* _avl_insert(&tree, nodes + 0, 20, &avl_basic_cmp); */
-  /* _avl_insert(&tree, nodes + 4, 21, &avl_basic_cmp); */
-  /* _avl_insert(&tree, nodes + 8, 15, &avl_basic_cmp); */
-  /* _avl_insert(&tree, nodes + 12, 1, &avl_basic_cmp); */
-  /* _avl_insert(&tree, nodes + 16, 16, &avl_basic_cmp); */
-  /* _avl_insert(&tree, nodes + 20, 19, &avl_basic_cmp); */
-  /* err = _avl_delete(&tree, 15, &avl_basic_cmp); */
+  _avl_insert(&tree, nodes + 0, 20, &avl_basic_cmp);
+  _avl_insert(&tree, nodes + 4, 21, &avl_basic_cmp);
+  _avl_insert(&tree, nodes + 8, 15, &avl_basic_cmp);
+  _avl_insert(&tree, nodes + 12, 1, &avl_basic_cmp);
+  _avl_insert(&tree, nodes + 16, 16, &avl_basic_cmp);
+  _avl_insert(&tree, nodes + 20, 19, &avl_basic_cmp);
+
+  err = _avl_delete(&tree, 15, &avl_basic_cmp);
   /* err = _avl_delete(&tree, 14, &avl_basic_cmp); */
   /* err = _avl_delete(&tree, 13, &avl_basic_cmp); */
   /* err = avl_delete(global_heap_start, &tree, 2, &avl_basic_cmp); */
