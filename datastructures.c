@@ -470,7 +470,7 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
     case -2:
       AVL_Node * l_child = (AVL_Node*)parent->left;
       _bf = balance_factor((word*)l_child);
-      if (balance_factor((word*)l_child) == 1){
+      if (_bf == 1){
         avl_rotate_lr(tr, (word*)parent);
       }else{
         avl_rotate_right(tr, (word*)parent);
@@ -486,9 +486,9 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
       set_balance_factor((word*)parent, bf);
       return ret;
     case 2:
-      AVL_Node * r_child = (AVL_Node*)parent->left;
+      AVL_Node * r_child = (AVL_Node*)parent->right;
       _bf = balance_factor((word*)r_child);
-      if (balance_factor((word*)r_child) == (word)-1){
+      if (_bf == (word)-1){
         avl_rotate_rl(tr, (word*)parent);
       }else{
         avl_rotate_left(tr, (word*)parent);

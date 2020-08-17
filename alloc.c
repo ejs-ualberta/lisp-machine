@@ -44,8 +44,8 @@ word * init_heap(word * heap_start, word heap_sz){
 
 
 word * alloc(word * heap, word mem_sz){
-  mem_sz += umds_sz;
   if (mem_sz < min_alloc_sz){mem_sz = min_alloc_sz;}
+  mem_sz += umds_sz; //Note: Do not switch this with the previous statement, because it will bug out for small sizes???
 
   hds * h_info = (hds*)heap;
   fmds * mem_ptr = (fmds*)h_info->fmds_ptr;
