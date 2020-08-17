@@ -454,11 +454,10 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
   }
 
   AVL_Node * pp = 0;
-  word * res = 0;
   for (; parent; parent = pp){
     pp = get_parent(parent);
     word bf = balance_factor((word*)parent) - direction;
-    word _bf = 1; // Just hast to not be zero.
+    word _bf = 1; // Just has to not be zero.
     // Set direction for next iteration
     if (pp){
       if (pp->left == (word)parent){
