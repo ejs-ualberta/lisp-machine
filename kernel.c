@@ -13,6 +13,7 @@
 const word word_max = UINTMAX_MAX;
 
 word * global_heap_start;
+word global_heap_size;
 
 
 void shutdown(void){
@@ -154,7 +155,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
       }
     }
   }
-  if (!conv_mem_start || !conv_mem_sz){
+  if (!conv_mem_start || conv_mem_sz <= hds_sz * sizeof(word)){
     ST->ConOut->OutputString(ST->ConOut, L"No memory????\r\n");
     return Status;
   }
@@ -167,6 +168,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   }
 
 
+  global_heap_size = (word)(conv_mem_sz) / sizeof(word) - hds_sz;
   global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word));
 
 
@@ -190,7 +192,95 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     }
   }
 
+
+  word * rsdp = 0;
+  //TODO: better way to do this?
+  EFI_GUID acpi_20_guid = {0x8868e871,0xe4f1,0x11d3, {0xbc,0x22,0x00,0x80,0xc7,0x3c,0x88,0x81}};
+  EFI_CONFIGURATION_TABLE * conf_tbl = ST->ConfigurationTable;
+  for (word i = 0; i < ST->NumberOfTableEntries; ++i){
+    if (!memcmp((word*)&(conf_tbl->VendorGuid), (word*)&acpi_20_guid, sizeof(EFI_GUID)/sizeof(word))){
+      rsdp = conf_tbl->VendorTable;
+      break;
+    }
+    ++conf_tbl;
+  }
+  if (!rsdp){
+    ST->ConOut->OutputString(ST->ConOut, L"Cannot find rsdp.\r\n");
+    return Status;
+  }
+  // Check the checksum of the rsdpd.
+  uint32_t rsdpd_len = ((uint32_t*)rsdp)[5];
+  word rsdpd_chk = 0;
+  for (word i = 0; i < rsdpd_len; ++i){
+    rsdpd_chk += ((uint8_t*)rsdp)[i];
+  }
+  if (!rsdpd_chk || (uint8_t)rsdpd_chk){
+    ST->ConOut->OutputString(ST->ConOut, L"Checksum for rsdp is invalid.");
+    return Status;
+  }
+
+  word * xsdt = (word*)(rsdp[3]);
+  // Check the checksum of the xsdt.
+  uint32_t xsdt_len = ((uint32_t*)xsdt)[1];
+  word xsdt_chk = 0;
+  for (word i = 0; i < xsdt_len; ++i){
+    xsdt_chk += ((uint8_t*)xsdt)[i];
+  }
+  if (!xsdt_chk || (uint8_t)rsdpd_chk){
+    ST->ConOut->OutputString(ST->ConOut, L"Checksum for xsdt is invalid.");
+    return Status;
+  }
+
+
+  word str_str[3] = {'s', 't', 'r'};
+  string_type = object(global_heap_start, string_type, 3, str_str, 3);
+  word num_str[3] = {'n','u', 'm'};
+  num_type = object(global_heap_start, string_type, 3, num_str, 3);
+  word arr_str[3] = {'a', 'r', 'r'};
+  array_type = object(global_heap_start, string_type, 3, arr_str, 3);
+  word set_str[3] = {'s', 'e', 't'};
+  set_type = object(global_heap_start, string_type, 3, set_str, 3);
+  word fun_str[3] = {'f', 'u', 'n'};
+  function_type = object(global_heap_start, string_type, 3, fun_str, 3);
+  word cell_str[3] = {'c', 'n', 's'};
+  cell_type = object(global_heap_start, string_type, 3, cell_str, 3);
+
+
+  word * machine = set(global_heap_start);
+
+  word kernel_str[6] = {'k', 'e', 'r', 'n', 'e', 'l'};
+  word * kernel_key = object(global_heap_start, string_type, 6, kernel_str, 6);
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
+  word * kernel_val = object(global_heap_start, array_type, 1, (word*)&bytecode, 1);
+  print_uint(1, 16, 0);
+  array_delete(global_heap_start, kernel_src);
+  set_add_str_key(global_heap_start, machine, kernel_key, kernel_val);
+
+  word start_str[5] = {'s', 't', 'a', 'r', 't'};
+  word * start = object(global_heap_start, string_type, 5, start_str, 5);
+  word size_str[4] = {'s', 'i', 'z', 'e'};
+  word * size = object(global_heap_start, string_type, 4, size_str, 4);
+
+  word * mem_val = set(global_heap_start);
+  word * mem_val_start = object(global_heap_start, num_type, 1, (word*)&global_heap_start, 1);
+  word * mem_val_size = object(global_heap_start, num_type, 1, &global_heap_size, 1);
+  set_add_str_key(global_heap_start, mem_val, start, mem_val_start);
+  set_add_str_key(global_heap_start, mem_val, size, mem_val_size);
+  word mem_str[3] = {'m', 'e', 'm'};
+  word * mem_key = object(global_heap_start, string_type, 3, mem_str, 3);
+  set_add_str_key(global_heap_start, machine, mem_key, mem_val);
+
+  word types_str[5] = {'t', 'y', 'p', 'e', 's'};
+  word * types_key = object(global_heap_start, string_type, 5, types_str, 5);
+  word * types_val = set(global_heap_start);
+  set_add_str_key(global_heap_start, types_val, string_type, string_type);
+  set_add_str_key(global_heap_start, types_val, num_type, num_type);
+  set_add_str_key(global_heap_start, types_val, array_type, array_type);
+  set_add_str_key(global_heap_start, types_val, set_type, set_type);
+  set_add_str_key(global_heap_start, types_val, function_type, function_type);
+  set_add_str_key(global_heap_start, types_val, cell_type, cell_type);
+  set_add_str_key(global_heap_start, machine, types_key, types_val);
+
   //run(bytecode, )
 
   //TEST CODE BEGIN

@@ -4,6 +4,16 @@
 
 // Note: Use black magic to get maximum size from the umds associated with the object when expanding; No sense consuming another word.
 // TODO: Refcount attributes, e.g. cyclic (also add in manual ability to deallocate or cycle check)
+
+
+word * num_type;
+word * string_type;
+word * array_type;
+word * set_type;
+word * function_type;
+word * cell_type;
+
+
 typedef struct object{
   word max_sz; //(in umds, includes size of obj, must be here)
   word refcount;
@@ -19,8 +29,9 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
   word * mem = alloc(heap, size + obj_sz - 1);
   if (!mem){return (word*)0;}
   Object * obj = (Object*)(mem - 1);
-  obj->refcount = 1;
+  obj->refcount = 0;
   obj->type = (word)type;
+  ((Object*)type)->refcount += 1;
   obj->size = n_words;
   if (contents){
     for (word i = 0; i < n_words; ++i){
@@ -28,11 +39,6 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
     }
   }
   return (word*)obj;
-}
-
-
-void object_delete(word * heap, word * obj){
-  free(heap, obj + 1);
 }
 
 
@@ -92,6 +98,7 @@ word * array_append(word * heap, word * arr, word * item){
 
 void array_delete(word * heap, word * arr){
   arr -= Array_bsz;
+  arr += 1;
   free(heap, arr);
 }
 
@@ -565,3 +572,57 @@ word * check_balance_factors(word * tr){
   }
   return 0;
 }
+
+
+//NOTE: From this point forward only use if types are initialized.
+
+word * pair(word * heap, word * obj1, word * obj2){
+  word contents[2] = {(word)obj1, (word)obj2};
+  Object * o1 = (Object *)obj1;
+  Object * o2 = (Object *)obj2;
+  o1->refcount += 1;
+  o2->refcount += 1;
+  return object(heap, cell_type, 2, contents, 2);
+}
+
+
+word pair_strcmp(word * pair1, word * pair2){
+  Object * p1 = (Object*)pair1;
+  Object * p2 = (Object*)pair2;
+  if (p1->size < p2->size){
+    return 1;
+  }else if (p1->size > p2->size){
+    return (word)-1;
+  }
+  for (word i = 0; i < p1->size; ++i){
+    if (p1->contents[i] < p2->contents[i]){
+      return 1;
+    }else if (p1->contents[i] > p2->contents[i]){
+      return (word)-1;
+    }else{
+      return 0;
+    }  
+  }
+  return 0; // To silence warning.
+}
+
+
+word * set(word * heap){
+  word contents = 0;
+  return object(heap, set_type, 1, &contents, 1);
+}
+
+
+word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*)){
+  Object * obj = (Object*)s;
+  Object * d_obj = (Object*)data;
+  d_obj->refcount += 1;
+  return avl_insert(heap, (word**)&(obj->contents), (word)data, cmp);
+}
+
+
+word set_add_str_key(word * heap, word * s, word * key, word * val){
+  word * data = pair(heap, key, val);
+  return set_add(heap, s, data, &pair_strcmp);
+}
+

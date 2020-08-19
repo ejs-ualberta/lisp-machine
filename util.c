@@ -36,6 +36,18 @@ void * memset(void * str, int c, size_t n){
 }
 
 
+word memcmp(word * m1, word * m2, word len){
+  for (word i = 0; i < len; ++i){
+    if (m1[i] > m2[i]){
+      return (word)-1;
+    }else if (m1[i] < m2[i]){
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
 word atomic_cas(word * ptr, word cmp, word new){
   word output;
   asm volatile ("movq %1, %%rax;"

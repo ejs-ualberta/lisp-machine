@@ -11,6 +11,7 @@ typedef uintmax_t word;
 typedef intmax_t sword;
 typedef uint16_t wchar_t;
 
+
 //extern word * global_heap_start;
 
 
@@ -22,6 +23,7 @@ void nl(word n);
 
 
 // alloc.c
+extern const word hds_sz;
 word * init_heap(word * heap_start, word heap_sz);
 word * alloc(word * heap, word mem_sz);
 void free(word * heap, word * addr);
@@ -35,8 +37,14 @@ void run(word * bytecode, word bc_sz);
 
 
 //datastructures.c
+extern word * num_type;
+extern word * string_type;
+extern word * array_type;
+extern word * set_type;
+extern word * function_type;
+extern word * cell_type;
+
 word * object(word * heap, word * type, word size, word * contents, word n_words);
-void object_delete(word * heap, word * obj);
 word * array(word * heap, word size, word item_sz);
 word * array_find(word * arr, word * start, word * item, word (*eq_fn)(word *, word *, word *), word * extra_params);
 word * array_append(word * heap, word * arr, word * item);
@@ -50,6 +58,11 @@ word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_basic_cmp(word * n1, word * n2);
 void print_avl(word * tree, word space, word inc);
+word * pair(word * heap, word * obj1, word * obj2);
+word pair_strcmp(word * pair1, word * pair2);
+word * set(word * heap);
+word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*));
+word set_add_str_key(word * heap, word * s, word * key, word * val);
 
 
 //util.c
@@ -57,6 +70,7 @@ word max(sword x, sword y);
 word strlen(const word * str);
 void * memcpy(void * dest, const void * src, size_t n);
 void * memset(void * str, int c, size_t n);
+word memcmp(word * m1, word * m2, word len);
 word atomic_cas(word * ptr, word cmp, word new);
 word nat_pow(word base, word exp);
 word abs(word x);
