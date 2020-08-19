@@ -173,8 +173,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
 
   /* Load and compile kernel */
-  // ALLOC
-  word * kernel_src = array(global_heap_start, 64, 1);
+  word * kernel_src = array(global_heap_start, k_info.FileSize, 1);
   wchar_t contents[2];
   word character = 0;
   contents[1] = '\0';

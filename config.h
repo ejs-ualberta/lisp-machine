@@ -54,7 +54,7 @@ void array_delete(word * heap, word * arr);
 word array_capacity(word * arr);
 word array_len(word * arr);
 word avl_tree_height(word * nd);
-word * avl_merge(word ** tr, word * addr, word size);
+void avl_merge(word ** tr, word * addr, word size);
 word * avl_find(word ** tr, word data, word (*cmp)(word*, word*));
 word avl_min_ge(word * tree, word data);
 word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*));

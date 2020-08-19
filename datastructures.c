@@ -163,7 +163,7 @@ word set_balance_factor(word * nd, word bf){
 }
 
 
-word * avl_merge(word ** tr, word * addr, word size){
+void avl_merge(word ** tr, word * addr, word size){
   word * amax = addr + size;
   AVL_Node * left = (AVL_Node*)0;
   AVL_Node * right = (AVL_Node*)0;
