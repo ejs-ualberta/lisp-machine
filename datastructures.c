@@ -98,7 +98,6 @@ word * array_append(word * heap, word * arr, word * item){
 
 void array_delete(word * heap, word * arr){
   arr -= Array_bsz;
-  arr += 1;
   free(heap, arr);
 }
 
@@ -124,6 +123,10 @@ typedef struct avl_node{
 
 const word avl_node_sz = sizeof(AVL_Node)/sizeof(word);
 
+
+word get_avl_node_sz(void){
+  return avl_node_sz;
+}
 
 AVL_Node * get_parent(AVL_Node * node){
   if (!node){return 0;}
@@ -157,6 +160,70 @@ word set_balance_factor(word * nd, word bf){
   node->prev &= (word)-1 << 2;
   node->prev |= rev_balance_factor(bf);
   return 0;
+}
+
+
+word * avl_merge(word ** tr, word * addr, word size){
+  word * amax = addr + size;
+  AVL_Node * left = (AVL_Node*)0;
+  AVL_Node * right = (AVL_Node*)0;
+  AVL_Node * tree = (AVL_Node*)*tr;
+  while (tree && (!left || !right)){
+    if ((word*)tree == amax){
+      right = (AVL_Node*)tree;
+      tree = (AVL_Node*)(tree->left);
+    }
+    if ((word*)tree + tree->data == addr){
+      left = (AVL_Node*)tree;
+      tree = (AVL_Node*)(tree->right);
+    }
+    
+    if ((word*)tree > amax){
+      tree = (AVL_Node*)(tree->left);
+    }else if ((word*)tree + tree->data < addr){
+      tree = (AVL_Node*)(tree->right);
+    }
+  }
+
+  if (right){
+    size += right->data;
+    _avl_delete(tr, right->data, &avl_basic_cmp);
+  }
+  if (left){
+    addr -= left->data;
+    size += left->data;
+    _avl_delete(tr, left->data, &avl_basic_cmp);
+  }
+
+  _avl_insert(tr, addr, size, &avl_basic_cmp);
+}
+
+
+word * avl_find(word ** tr, word data, word (*cmp)(word*, word*)){
+  AVL_Node * tree = (AVL_Node*)*tr;
+  AVL_Node node = {0, 0, 0, data};
+  for (word b = cmp((word*)tree, (word*)&node); b; b = cmp((word*)tree, (word*)&node)){
+    switch (b){
+    case -1:
+      tree = (AVL_Node*)(tree->left);
+    case 0:
+      break;
+    case 1:
+      tree = (AVL_Node*)(tree->right);
+    }
+    if (!tree){return (word*)0;}
+  }
+  return (word*)tree;
+}
+
+
+word avl_min_ge(word * tree, word data){
+  if (!tree){return 0;}
+  AVL_Node * prev = (AVL_Node*)0;
+  for (; ((AVL_Node*)tree)->data >= data; tree = (word*)(((AVL_Node*)tree)->left)){
+    prev = (AVL_Node*)tree;
+  }
+  return prev->data;
 }
 
 
@@ -530,7 +597,7 @@ word avl_basic_cmp(word * n1, word * n2){
     return (word)1;
   }
   return (word)-1;
-} 
+}
 
 
 void print_avl(word * tree, word space, word inc){

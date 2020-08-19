@@ -44,6 +44,8 @@ extern word * set_type;
 extern word * function_type;
 extern word * cell_type;
 
+extern const word avl_node_sz;
+
 word * object(word * heap, word * type, word size, word * contents, word n_words);
 word * array(word * heap, word size, word item_sz);
 word * array_find(word * arr, word * start, word * item, word (*eq_fn)(word *, word *, word *), word * extra_params);
@@ -52,6 +54,9 @@ void array_delete(word * heap, word * arr);
 word array_capacity(word * arr);
 word array_len(word * arr);
 word avl_tree_height(word * nd);
+word * avl_merge(word ** tr, word * addr, word size);
+word * avl_find(word ** tr, word data, word (*cmp)(word*, word*));
+word avl_min_ge(word * tree, word data);
 word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*));
 word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*));
 word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*));

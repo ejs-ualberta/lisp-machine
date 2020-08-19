@@ -173,6 +173,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
 
   /* Load and compile kernel */
+  // ALLOC
   word * kernel_src = array(global_heap_start, 64, 1);
   wchar_t contents[2];
   word character = 0;
@@ -252,9 +253,10 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   word * kernel_key = object(global_heap_start, string_type, 6, kernel_str, 6);
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
   word * kernel_val = object(global_heap_start, array_type, 1, (word*)&bytecode, 1);
-  print_uint(1, 16, 0);
   array_delete(global_heap_start, kernel_src);
   set_add_str_key(global_heap_start, machine, kernel_key, kernel_val);
+
+  //TODO: Add kernel written in hll into machine.
 
   word start_str[5] = {'s', 't', 'a', 'r', 't'};
   word * start = object(global_heap_start, string_type, 5, start_str, 5);
