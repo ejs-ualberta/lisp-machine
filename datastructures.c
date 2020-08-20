@@ -128,6 +128,7 @@ word get_avl_node_sz(void){
   return avl_node_sz;
 }
 
+
 AVL_Node * get_parent(AVL_Node * node){
   if (!node){return 0;}
   return (AVL_Node *)(node->prev & ((word)-1 << 2));

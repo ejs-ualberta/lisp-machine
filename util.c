@@ -6,6 +6,11 @@ word max(sword x, sword y){
 }
 
 
+word min(sword x, sword y){
+  return x < y ? x : y;
+}
+
+
 word strlen(const word * str){
   const word * s = str;
   for (; *str; ++str){}
@@ -55,8 +60,7 @@ word atomic_cas(word * ptr, word cmp, word new){
 		"movq %%rax, %0;"
 		:"=r"(output)
 		:"r"(cmp), "r"(new), "r"(ptr)
-		:"%rax", "memory"
-       );
+		:"%rax", "memory");
  return output;
 }
 

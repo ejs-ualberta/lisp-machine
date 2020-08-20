@@ -1,1 +1,3 @@
-PRGM_BASE 0
+MAIN:
+	and r1A r1E r1E
+	xor r1F r1F r1F

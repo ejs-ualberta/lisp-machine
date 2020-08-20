@@ -33,7 +33,7 @@ word get_mem_sz(word * addr);
 
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
-void run(word * bytecode, word bc_sz);
+void run(word * bytecode);
 
 
 //datastructures.c
@@ -72,6 +72,7 @@ word set_add_str_key(word * heap, word * s, word * key, word * val);
 
 //util.c
 word max(sword x, sword y);
+word min(sword x, sword y);
 word strlen(const word * str);
 void * memcpy(void * dest, const void * src, size_t n);
 void * memset(void * str, int c, size_t n);

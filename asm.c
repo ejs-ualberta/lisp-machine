@@ -25,12 +25,12 @@ typedef struct operation_data{
 const word op_data_sz = sizeof(op_data)/sizeof(word);
 
 enum reg_aliases{
-  sp = num_regs - 8, // result register, used for upper reg when multiplying/dividing.
+  sp = num_regs - 8, 
   fp,
   bp, // pgrm base ptr
   lr, // link reg
-  rr, 
   ir, // ivt register
+  rr, // result register, used for upper reg when multiplying/dividing.
   pc,
   sr, // status register (exec cont. bit, carry bits, etc)
 };
@@ -196,7 +196,6 @@ word expect_hex_from_str(word * code, word code_sz, word * index, word max_val, 
     if (pval > max_val){return 1;}
     res = pval;
   }
-
   // Error if no valid characters read.
   if (!i){return 1;}
 
@@ -210,16 +209,14 @@ word expect_hex_from_str(word * code, word code_sz, word * index, word max_val, 
 word * compile(word * heap, word * code, word code_sz){
   // Use magic number to estimate of the amount of characters per instr;
   // opc arg arg arg imm\n
-
   if (!code_sz || !heap || !code){return 0;}
-  
   word * arr = array(heap, code_sz / 32, 1);
   if (!arr){return (word*)0;}
 
-  word * lbl_refs = array(heap, 16, lbl_info_sz);
+  word * lbl_refs = array(heap, code_sz / 8, lbl_info_sz);
   if (!lbl_refs){goto error2;}
 
-  word * lbls = array(heap, 16, lbl_info_sz);
+  word * lbls = array(heap, code_sz / 8, lbl_info_sz);
   if (!lbls){goto error1;}
 
   word * tmp_arr;
@@ -356,7 +353,7 @@ word * compile(word * heap, word * code, word code_sz){
 }
 
 
-void run(word * bytecode, word bc_sz){
+void run(word * bytecode){
   // Add 1 so there is a secret register for immediates (to simplify the code)
   word regs[num_regs + 1] = {0};
   regs[sr] = exc_cont_mask;
@@ -366,8 +363,7 @@ void run(word * bytecode, word bc_sz){
   word args[mx_reg_args] = {0};
 
   while (regs[sr] & exc_cont_mask){
-    word prgm_ctr = regs[pc];
-    word instr = *bytecode + prgm_ctr;
+    word instr = *(word*)(regs[pc]);
     word opcode = (instr & inst_mask) >> opcode_start;
     word n_args = instructions[opcode].n_args;
     word uses_reg = (instr & instr_uses_reg);
@@ -392,26 +388,65 @@ void run(word * bytecode, word bc_sz){
 
     switch (opcode){
     case acx:
-      //atomic_cas();
+      regs[args[1]] = atomic_cas((word*)regs[args[0]], regs[args[1]], regs[args[2]]);
       break;
     case ads:
+      regs[args[0]] = regs[args[1]] + regs[args[2]];
+      break;
     case sbs:
+      regs[args[0]] = regs[args[1]] + (~regs[args[2]] + 1);
+      break;
     case mls:
+      regs[args[0]] = (word)((sword)args[args[1]] * (sword)regs[args[2]]);
+      break;
     case mlu:
+      regs[args[0]] = regs[args[1]] * regs[args[2]];
+      break;
     case dvs:
+      regs[args[0]] = (word)((sword)regs[args[1]] / (sword)regs[args[2]]);
+      regs[rr] = (word)((sword)regs[args[1]] % (sword)regs[args[2]]);
+      break;
     case dvu:
+      regs[args[0]] = regs[args[1]] / regs[args[2]];
+      regs[rr] = regs[args[1]] % regs[args[2]];
+      break;
     case and:
+      regs[args[0]] = regs[args[1]] & regs[args[2]];
+      break;
     case orr:
+      regs[args[0]] = regs[args[1]] | regs[args[2]];
+      break;
     case xor:
+      regs[args[0]] = regs[args[1]] ^ regs[args[2]];
+      break;
     case nor:
+      regs[args[0]] = ~(regs[args[1]] | regs[args[2]]);
+      break;
     case shf:
+      sword sh = (sword)(regs[args[2]]);
+      word shift = min(abs(sh), bits);
+      if (sh < 0){
+	regs[args[0]] = regs[args[1]] << shift;
+      }else{
+	regs[args[0]] = regs[args[1]] >> shift;
+      }
+      break;
     case ldr:
+      regs[args[0]] = *(word*)(regs[args[1]] + regs[args[2]]);
+      break;
     case str:
+      *(word*)(regs[args[1]] + regs[args[2]]) = regs[args[0]];
+      break;
     case jnc:
+      if (regs[args[0]]){
+	regs[pc] = regs[args[1]] + regs[args[2]];
+      }
+      continue;
     case exc:
       break;
+      continue;
     }
     
-    ++prgm_ctr;
+    ++(regs[pc]);
   }
 }
