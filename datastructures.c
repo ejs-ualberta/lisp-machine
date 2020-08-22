@@ -14,16 +14,7 @@ word * function_type;
 word * cell_type;
 
 
-typedef struct object{
-  word max_sz; //(in umds, includes size of obj, must be here)
-  word refcount;
-  word type;
-  word size;
-  word contents[];
-}Object;
-
 const word obj_sz = sizeof(Object)/sizeof(word);
-
 
 word * object(word * heap, word * type, word size, word * contents, word n_words){
   word * mem = alloc(heap, size + obj_sz - 1);
@@ -42,14 +33,7 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
 }
 
 
-typedef struct Array_DS{
-  word mem_sz;
-  word used_sz;
-  word item_sz;
-}Array;
-
 const word Array_bsz = sizeof(Array)/sizeof(word) - 1;
-
 
 word * array(word * heap, word size, word item_sz){
   word * mem = alloc(heap, size * item_sz + Array_bsz);
@@ -114,15 +98,7 @@ word array_len(word * arr){
 }
 
 
-typedef struct avl_node{
-  word prev;
-  word left;
-  word right;
-  word data;
-} AVL_Node;
-
 const word avl_node_sz = sizeof(AVL_Node)/sizeof(word);
-
 
 word get_avl_node_sz(void){
   return avl_node_sz;
@@ -188,18 +164,17 @@ void avl_merge(word ** tr, word * addr, word size){
       }
     }
   }
-
   if (right){
     size += right->data;
-    _avl_delete(tr, right->data, &avl_basic_cmp);
+    _avl_delete(tr, (word*)right, &avl_mem_cmp);
   }
   if (left){
     addr -= left->data;
     size += left->data;
-    _avl_delete(tr, left->data, &avl_basic_cmp);
+    _avl_delete(tr, (word*)left, &avl_mem_cmp);
   }
 
-  _avl_insert(tr, addr, size, &avl_basic_cmp);
+  _avl_insert(tr, addr, size, &avl_mem_cmp);
 }
 
 
@@ -221,13 +196,13 @@ word * avl_find(word ** tr, word data, word (*cmp)(word*, word*)){
 }
 
 
-word avl_min_ge(word * tree, word data){
+word * avl_min_ge(word * tree, word data){
   if (!tree){return 0;}
   AVL_Node * prev = (AVL_Node*)0;
   for (; ((AVL_Node*)tree)->data >= data; tree = (word*)(((AVL_Node*)tree)->left)){
     prev = (AVL_Node*)tree;
   }
-  return prev->data;
+  return (word*)prev;
 }
 
 
@@ -467,26 +442,10 @@ word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
 }
 
 
-word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
-  AVL_Node * tree = (AVL_Node*)*tr;
-  AVL_Node node;
-  node.data = data;
-
+word * _avl_delete(word ** tr, word * node, word (*cmp)(word*, word*)){
   word * ret = 0;
-  if (!tree){return ret;}
-
-  // Find node
-  for (word b = cmp((word*)tree, (word*)&node); b; b = cmp((word*)tree, (word*)&node)){
-    switch (b){
-    case -1:
-      tree = (AVL_Node*)(tree->left);
-    case 0:
-      break;
-    case 1:
-      tree = (AVL_Node*)(tree->right);
-    }
-    if (!tree){return ret;}
-  }
+  AVL_Node * tree = (AVL_Node*)node;
+  if (!(*tr) || !tree){return ret;}
 
   // Find successor (if it exists)
   AVL_Node * successor = (AVL_Node*)(tree->left);
@@ -585,7 +544,8 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
 
 
 word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
-  word * x = _avl_delete(tr, data, cmp);
+  word * node = avl_find(tr, data, cmp);
+  word * x = _avl_delete(tr, node, cmp);
   if (x){
     free(heap, x);
     return 0;
@@ -601,6 +561,16 @@ word avl_basic_cmp(word * n1, word * n2){
   if (node1->data < node2->data){
     return 1;
   }else if (node1->data == node2->data){
+    return 0;
+  }
+  return (word)-1;
+}
+
+
+word avl_mem_cmp(word * n1, word * n2){
+  if (n1 < n2){
+    return 1;
+  }else if (n1 == n2){
     return 0;
   }
   return (word)-1;

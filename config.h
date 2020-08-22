@@ -37,13 +37,26 @@ void run(word * bytecode);
 
 
 //datastructures.c
-extern word * num_type;
-extern word * string_type;
-extern word * array_type;
-extern word * set_type;
-extern word * function_type;
-extern word * cell_type;
+typedef struct object{
+  word max_sz; //(in umds, includes size of obj, must be here)
+  word refcount;
+  word type;
+  word size;
+  word contents[];
+}Object;
 
+typedef struct Array_DS{
+  word mem_sz;
+  word used_sz;
+  word item_sz;
+}Array;
+
+typedef struct avl_node{
+  word prev;
+  word left;
+  word right;
+  word data;
+} AVL_Node;
 extern const word avl_node_sz;
 
 word * object(word * heap, word * type, word size, word * contents, word n_words);
@@ -56,12 +69,13 @@ word array_len(word * arr);
 word avl_tree_height(word * nd);
 void avl_merge(word ** tr, word * addr, word size);
 word * avl_find(word ** tr, word data, word (*cmp)(word*, word*));
-word avl_min_ge(word * tree, word data);
+word * avl_min_ge(word * tree, word data);
 word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*));
-word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*));
+word * _avl_delete(word ** tr, word * tree, word (*cmp)(word*, word*));
 word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_basic_cmp(word * n1, word * n2);
+word avl_mem_cmp(word * n1, word * n2);
 void print_avl(word * tree, word space, word inc);
 word * pair(word * heap, word * obj1, word * obj2);
 word pair_strcmp(word * pair1, word * pair2);

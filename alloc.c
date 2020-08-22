@@ -42,16 +42,16 @@ word * alloc(word * heap, word mem_sz){
   hds * h_info = (hds*)heap;
   word ** tr = (word**)&(h_info->fmds_ptr);
   word * mem_ptr = (word*)h_info->fmds_ptr;
-  word min_ge = avl_min_ge(mem_ptr, mem_sz);
+  AVL_Node * min_ge = (AVL_Node*)avl_min_ge(mem_ptr, mem_sz);
   if (!min_ge){return 0;}
 
-  mem_ptr = _avl_delete(tr, min_ge, &avl_basic_cmp);
-  if (min_ge >= mem_sz + min_alloc_sz){
-    word os = min_ge - mem_sz;
+  mem_ptr = _avl_delete(tr, (word*)min_ge, &avl_mem_cmp);
+  if (min_ge->data >= mem_sz + min_alloc_sz){
+    word os = min_ge->data - mem_sz;
     word * new_ptr = mem_ptr + mem_sz;
-    _avl_insert(tr, new_ptr, os, &avl_basic_cmp);
+    _avl_insert(tr, new_ptr, os, &avl_mem_cmp);
   }else{
-    mem_sz = min_ge;
+    mem_sz = min_ge->data;
   }
 
   umds * mem = (umds*)(mem_ptr);
