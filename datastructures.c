@@ -144,6 +144,7 @@ word get_balance_factor(word * nd){
 word balance_factor(word * nd){
   if (!nd){return 0;}
   word bf = get_balance_factor(nd);
+  //if (!bf){return 0;}
   //3 -> 0, 1 -> +1, 2 -> -1
   return (bf/3) ? 0 : nat_pow(-1, (bf % 3) - 1);
 }
@@ -178,11 +179,13 @@ void avl_merge(word ** tr, word * addr, word size){
       left = (AVL_Node*)tree;
       tree = (AVL_Node*)(tree->right);
     }
-    
-    if ((word*)tree > amax){
-      tree = (AVL_Node*)(tree->left);
-    }else if ((word*)tree + tree->data < addr){
-      tree = (AVL_Node*)(tree->right);
+
+    if (tree){
+      if ((word*)tree > amax){
+	tree = (AVL_Node*)(tree->left);
+      }else if ((word*)tree + tree->data < addr){
+	tree = (AVL_Node*)(tree->right);
+      }
     }
   }
 
@@ -365,7 +368,6 @@ word avl_tree_height(word * nd){
 word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*)){
   AVL_Node * tree = (AVL_Node*)(*tr);
   AVL_Node * node = (AVL_Node*)nd;
-
   if (!node){
     return 1;
   }
@@ -380,30 +382,32 @@ word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*)){
     return 0;
   }
 
-  // Insert node.
-  // If b is zero, node is already in tree, so it can be used to exit the while loop.
-  for (word b = cmp((word*)tree, (word*)node); b; b = cmp((word*)tree, (word*)node)){
-    node->prev = (word)tree | 3;
+  // Insert node
+  AVL_Node * ins_p = 0;
+  word b = 0;
+  while(tree){
+    b = cmp((word*)tree, (word*)node);
     switch (b){
     case -1:
-      if (!tree->left){
-	tree->left = (word)node;
-	b = 0;
-	break;
-      }
-      tree = (AVL_Node*)(tree->left);
+      ins_p = tree;
+      tree = (AVL_Node*)tree->left;
       break;
     case 0:
       return 1;
     case 1:
-      if (!tree->right){
-	tree->right = (word)node;
-	b = 0;
-	break;
-      }
-      tree = (AVL_Node*)(tree->right);
+      ins_p = tree;
+      tree = (AVL_Node*)tree->right;
       break;
     }
+  }
+  node->prev = (word)ins_p | 3;
+  switch(b){
+  case -1:
+    ins_p->left = (word)node;
+    break;
+  case 1:
+    ins_p->right = (word)node;
+    break;
   }
 
   // If the height of the tree did not increase, return.
@@ -436,12 +440,14 @@ word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*)){
 	avl_rotate_rl(tr, (word*)node);
       }
       break;
+    }else if (!bf){
+      set_balance_factor((word*)node, bf);
+      return 0;
     }else{
       set_balance_factor((word*)node, bf);
     }
     child = node;
   }
-
   return 0;
 }
 
@@ -495,8 +501,9 @@ word * _avl_delete(word ** tr, word data, word (*cmp)(word*, word*)){
   word bf = 0;
   word direction = 0;
   // Will start rebalancing tree from parent later.
-  AVL_Node * parent = get_parent(successor);
+  AVL_Node * parent;
   if (successor){
+    parent = get_parent(successor);
     // successor must have a parent if it exists. (could be tree)
     tree->data = successor->data;
     child = (AVL_Node*)(successor->right);
@@ -591,24 +598,29 @@ word avl_basic_cmp(word * n1, word * n2){
   AVL_Node * node1 = (AVL_Node*)n1;
   AVL_Node * node2 = (AVL_Node*)n2;
 
-  if (node1->data <= node2->data){
-    if (node1->data == node2->data){
-      return (word)0;
-    }
-    return (word)1;
+  if (node1->data < node2->data){
+    return 1;
+  }else if (node1->data == node2->data){
+    return 0;
   }
   return (word)-1;
 }
 
 
-void print_avl(word * tree, word space, word inc){
+void _print_avl(word * tree, word space, word inc){
   AVL_Node * node = (AVL_Node*)tree;
   if (!tree){return;}
   //spc(space);print_uint(tree, 16, 8);nl(1);
   spc(space);print_uint(tree[0] & 3, 16, 2);//nl(1);
   spc(1);print_uint(tree[3], 16, 2);nl(1);
-  print_avl((word*)(node->right), space + inc, inc);
-  print_avl((word*)(node->left), space, inc);
+  _print_avl((word*)(node->right), space + inc, inc);
+  _print_avl((word*)(node->left), space, inc);
+}
+
+
+void print_avl(word * tree, word space, word inc){
+  if (!tree){print_uint(0, 16, 2);nl(1);}
+  _print_avl(tree, space, inc);
 }
 
 
