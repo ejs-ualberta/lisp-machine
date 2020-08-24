@@ -150,8 +150,7 @@ void avl_merge(word ** tr, word * addr, word size){
     if ((word*)tree == amax){
       right = (AVL_Node*)tree;
       tree = (AVL_Node*)(tree->left);
-    }
-    if ((word*)tree + tree->data == addr){
+    }else if ((word*)tree + tree->data == addr){
       left = (AVL_Node*)tree;
       tree = (AVL_Node*)(tree->right);
     }
@@ -164,6 +163,7 @@ void avl_merge(word ** tr, word * addr, word size){
       }
     }
   }
+
   if (right){
     size += right->data;
     _avl_delete(tr, (word*)right, &avl_mem_cmp);
@@ -173,7 +173,8 @@ void avl_merge(word ** tr, word * addr, word size){
     size += left->data;
     _avl_delete(tr, (word*)left, &avl_mem_cmp);
   }
-
+  print_uint(size, 16, 0);nl(1);
+  print_avl(*tr, 0, 2);
   _avl_insert(tr, addr, size, &avl_mem_cmp);
 }
 
@@ -198,11 +199,21 @@ word * avl_find(word ** tr, word data, word (*cmp)(word*, word*)){
 
 word * avl_min_ge(word * tree, word data){
   if (!tree){return 0;}
-  AVL_Node * prev = (AVL_Node*)0;
-  for (; ((AVL_Node*)tree)->data >= data; tree = (word*)(((AVL_Node*)tree)->left)){
-    prev = (AVL_Node*)tree;
+  word * o1 = avl_min_ge((word*)((AVL_Node*)tree)->left, data);
+  word * o2 = 0;
+  if (!o1){
+    o2 = avl_min_ge((word*)((AVL_Node*)tree)->right, data);
   }
-  return (word*)prev;
+
+  if (o1){
+    return (word*)o1;
+  }else if (o2){
+    return (word*)o2;    
+  }else if (((AVL_Node*)tree)->data >= data){
+    return tree;
+  }
+  
+  return (word*)0;
 }
 
 

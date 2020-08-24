@@ -244,25 +244,26 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   /* run(bytecode); */
 
-  word t1 = alloc(global_heap_start, 1);
-  word t2 = alloc(global_heap_start, 1);
-  word t3 = alloc(global_heap_start, 1);
-  word t4 = alloc(global_heap_start, 1);
-  word t5 = alloc(global_heap_start, 1);
-  word t6 = alloc(global_heap_start, 1);
-  word t7 = alloc(global_heap_start, 1);
-  word t8 = alloc(global_heap_start, 1);
+  word * t1 = alloc(global_heap_start, 1);
+  word * t2 = alloc(global_heap_start, 1);
+  word * t3 = alloc(global_heap_start, 1);
+  word * t4 = alloc(global_heap_start, 1);
+  word * t5 = alloc(global_heap_start, 1);
+  word * t6 = alloc(global_heap_start, 1);
+  word * t7 = alloc(global_heap_start, 1);
+  word * t8 = alloc(global_heap_start, 1);
 
   free(global_heap_start, t1);
   free(global_heap_start, t3);
   free(global_heap_start, t5);
   free(global_heap_start, t7);
-  print_avl(global_heap_start[3], 0, 2);
   free(global_heap_start, t2);
   free(global_heap_start, t4);
+  //print_avl(global_heap_start[3], 0, 2);
   free(global_heap_start, t6);
-  free(global_heap_start, t8);
-  print_avl(global_heap_start[3], 0, 2);
+  //print_avl(global_heap_start[3], 0, 2);
+  /* free(global_heap_start, t6); */
+  /* free(global_heap_start, t8); */
   /* Build os here */
   while (1){};
 
