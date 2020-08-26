@@ -141,6 +141,39 @@ word set_balance_factor(word * nd, word bf){
 }
 
 
+void avl_move(word ** tr, word * dest, word * src){
+  if (dest == src){return;}
+  AVL_Node * s = (AVL_Node*)src;
+  AVL_Node * d = (AVL_Node*)dest;
+
+  AVL_Node * parent = get_parent(s);
+  if (parent){
+    if ((word*)parent->left == src){
+      parent->left = (word)dest;
+    }else{
+      parent->right = (word)dest;
+    }
+  }
+  AVL_Node * left = (AVL_Node*)(s->left);
+  if (left){
+    left->prev = (word)(dest) | get_balance_factor((word*)left);
+  }
+  AVL_Node * right = (AVL_Node*)(s->right);
+  if (right){
+    right->prev = (word)(dest) | get_balance_factor((word*)right);
+  }
+
+  d->prev = s->prev;
+  d->left = (word)left;
+  d->right = (word)right;
+  d->data = s->data;
+  
+  if (*tr == src){
+    *tr = dest;
+  }
+}
+
+
 void avl_merge(word ** tr, word * addr, word size){
   word * amax = addr + size;
   AVL_Node * left = (AVL_Node*)0;
@@ -157,25 +190,26 @@ void avl_merge(word ** tr, word * addr, word size){
 
     if (tree){
       if ((word*)tree > amax){
-	tree = (AVL_Node*)(tree->left);
+  	tree = (AVL_Node*)(tree->left);
       }else if ((word*)tree + tree->data < addr){
-	tree = (AVL_Node*)(tree->right);
+  	tree = (AVL_Node*)(tree->right);
       }
     }
   }
 
   if (right){
     size += right->data;
-    _avl_delete(tr, (word*)right, &avl_mem_cmp);
+    word * dest = _avl_delete(tr, (word*)right, &avl_mem_cmp);
+    avl_move(tr, dest, (word*)right);
   }
   if (left){
     addr -= left->data;
     size += left->data;
-    _avl_delete(tr, (word*)left, &avl_mem_cmp);
+    word * dest = _avl_delete(tr, (word*)left, &avl_mem_cmp);
+    avl_move(tr, dest, (word*)left);
   }
-  print_uint(size, 16, 0);nl(1);
-  print_avl(*tr, 0, 2);
   _avl_insert(tr, addr, size, &avl_mem_cmp);
+
 }
 
 
@@ -607,6 +641,7 @@ void print_avl(word * tree, word space, word inc){
 
 word * check_balance_factors(word * tr){
   AVL_Node * tree = (AVL_Node*)tr;
+  if (!tree){return 0;}
   if (!tree->left && !tree->right){return 0;}
   word lh = avl_tree_height((word*)(tree->left));
   word rh = avl_tree_height((word*)(tree->right));

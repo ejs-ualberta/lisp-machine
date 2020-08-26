@@ -28,24 +28,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /* Store the system table in a global variable */
   ST = SystemTable;
 
-  /* Get a handle to the GOP */
-  EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
-  Status = ST->BootServices->LocateProtocol(&gEfiGraphicsOutputProtocolGuid,
-					    NULL,
-					    (void**)&gop);
-  if (EFI_ERROR(Status) || gop == NULL) {
-    ST->ConOut->OutputString(ST->ConOut, L"Could not get GOP handle.\r\n");
-    return Status;
-  }
-
-  /* TODO: properly get screen size (for booting on real hardware)*/
-  /* EFI_EDID_ACTIVE_PROTOCOL * edid_ap; */
-  /* Status = ST->BootServices->LocateProtocol(&gEfiEdidActiveProtocolGuid, NULL, (void **)&edid_ap); */
-  /* if (EFI_ERROR(Status) || edid_ap == NULL) { */
-  /*   ST->ConOut->OutputString(ST->ConOut, L"Could not get EDID handle.\r\n"); */
-  /*   return Status; */
-  /* } */
-
 
   word * rsdp = 0;
   //TODO: better way to do this?
@@ -87,6 +69,24 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   
   
   /* Note: this whole section needs updating if/when booting on real hardware someday. */
+  /* Get a handle to the GOP */
+  EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+  Status = ST->BootServices->LocateProtocol(&gEfiGraphicsOutputProtocolGuid,
+					    NULL,
+					    (void**)&gop);
+  if (EFI_ERROR(Status) || gop == NULL) {
+    ST->ConOut->OutputString(ST->ConOut, L"Could not get GOP handle.\r\n");
+    return Status;
+  }
+
+  /* TODO: properly get screen size (for booting on real hardware)*/
+  /* EFI_EDID_ACTIVE_PROTOCOL * edid_ap; */
+  /* Status = ST->BootServices->LocateProtocol(&gEfiEdidActiveProtocolGuid, NULL, (void **)&edid_ap); */
+  /* if (EFI_ERROR(Status) || edid_ap == NULL) { */
+  /*   ST->ConOut->OutputString(ST->ConOut, L"Could not get EDID handle.\r\n"); */
+  /*   return Status; */
+  /* } */
+  
   uint32_t * fb_start = 0; 
   UINTN b_hres = 0;    
   UINTN b_vres = 0;
@@ -244,14 +244,14 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   /* run(bytecode); */
 
-  word * t1 = alloc(global_heap_start, 1);
-  word * t2 = alloc(global_heap_start, 1);
-  word * t3 = alloc(global_heap_start, 1);
-  word * t4 = alloc(global_heap_start, 1);
-  word * t5 = alloc(global_heap_start, 1);
-  word * t6 = alloc(global_heap_start, 1);
-  word * t7 = alloc(global_heap_start, 1);
-  word * t8 = alloc(global_heap_start, 1);
+  word * t1 = alloc(global_heap_start, 4);
+  word * t2 = alloc(global_heap_start, 5);
+  word * t3 = alloc(global_heap_start, 6);
+  word * t4 = alloc(global_heap_start, 7);
+  word * t5 = alloc(global_heap_start, 8);
+  word * t6 = alloc(global_heap_start, 9);
+  word * t7 = alloc(global_heap_start, 10);
+  word * t8 = alloc(global_heap_start, 11);
 
   free(global_heap_start, t1);
   free(global_heap_start, t3);
@@ -259,8 +259,19 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   free(global_heap_start, t7);
   free(global_heap_start, t2);
   free(global_heap_start, t4);
-  //print_avl(global_heap_start[3], 0, 2);
-  free(global_heap_start, t6);
+  //print_avl(global_heap_start[3], 0, 2);nl(1);
+  //free(global_heap_start, t6);
+  //free(global_heap_start, t8);
+  print_avl(global_heap_start[3], 0, 2);
+  /* for (word i = 0; i < 40; ++i){ */
+  /*   word p = *(global_heap_start + i); */
+  /*   if (p >= global_heap_start){ */
+  /*     p -= (word)global_heap_start; */
+  /*     p /= 8; */
+  /*   } */
+  /*   print_uint(p, 16, 0);spc(1); */
+  /* }nl(1); */
+
   //print_avl(global_heap_start[3], 0, 2);
   /* free(global_heap_start, t6); */
   /* free(global_heap_start, t8); */
