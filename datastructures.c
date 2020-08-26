@@ -209,7 +209,6 @@ void avl_merge(word ** tr, word * addr, word size){
     avl_move(tr, dest, (word*)left);
   }
   _avl_insert(tr, addr, size, &avl_mem_cmp);
-
 }
 
 

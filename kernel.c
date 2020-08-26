@@ -126,9 +126,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     return Status;
   }
 
-  /* Red = 0x00FF0000; */
-  /* Green = 0x0000FF00; */
-  /* Blue = 0x000000FF; */
+  /* R = 0x00FF0000; */
+  /* G = 0x0000FF00; */
+  /* B = 0x000000FF; */
   fb_start = (uint32_t*)gop->Mode->FrameBufferBase;
 
   
@@ -169,13 +169,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   }
 
 
-  //Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
-  if (EFI_ERROR(Status)){
-    ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n");
-    return Status;
-  }
-
-
   global_heap_size = (word)(conv_mem_sz) / sizeof(word) - hds_sz;
   global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word));
 
@@ -210,72 +203,37 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     return Status;
   }
 
-  //Load kernel
-  /* word * kernel_src = array(global_heap_start, k_info.FileSize, 1); */
-  /* wchar_t contents[2]; */
-  /* word character = 0; */
-  /* contents[1] = '\0'; */
-  /* word one = 1; */
-  /* for (word i = 0; i < k_info.FileSize; ++i){ */
-  /*   Status = Kernel->Read(Kernel, &one, contents); */
-  /*   if (EFI_ERROR(Status)){ */
-  /*     ST->ConOut->OutputString(ST->ConOut, L"Could not load kernel.\r\n"); */
-  /*     return Status; */
-  /*   } */
-  /*   character = (word)*contents; */
-  /*   kernel_src = array_append(global_heap_start, kernel_src, &character); */
-  /*   if (!kernel_src){ */
-  /*     ST->ConOut->OutputString(ST->ConOut, L"Out of memory, kernel too big.\r\n"); */
-  /*     return Status; */
-  /*   } */
-  /* } */
-  /* word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src)); */
-  /* array_delete(global_heap_start, kernel_src); */
+  //Load and compile kernel
+  word * kernel_src = array(global_heap_start, k_info.FileSize, 1);
+  wchar_t contents[2];
+  word character = 0;
+  contents[1] = '\0';
+  word one = 1;
+  for (word i = 0; i < k_info.FileSize; ++i){
+    Status = Kernel->Read(Kernel, &one, contents);
+    if (EFI_ERROR(Status)){
+      ST->ConOut->OutputString(ST->ConOut, L"Could not load kernel.\r\n");
+      return Status;
+    }
+    character = (word)*contents;
+    kernel_src = array_append(global_heap_start, kernel_src, &character);
+    if (!kernel_src){
+      ST->ConOut->OutputString(ST->ConOut, L"Out of memory, kernel too big.\r\n");
+      return Status;
+    }
+  }
+  word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
+  array_delete(global_heap_start, kernel_src);
+
+
+  //Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
+  if (EFI_ERROR(Status)){
+    ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n");
+    return Status;
+  }
 
   
-  /* //TEST CODE BEGIN */
-  /* print_uint((word)bytecode, 16, 8);nl(2); */
-  /* if (bytecode){ */
-  /*   for (int i = 0; i < array_len(bytecode); ++i){ */
-  /*     print_uint(bytecode[i], 2, 64);nl(1); */
-  /*   } */
-  /* } */
-  /* // TEST CODE END */
-
-  /* run(bytecode); */
-
-  word * t1 = alloc(global_heap_start, 4);
-  word * t2 = alloc(global_heap_start, 5);
-  word * t3 = alloc(global_heap_start, 6);
-  word * t4 = alloc(global_heap_start, 7);
-  word * t5 = alloc(global_heap_start, 8);
-  word * t6 = alloc(global_heap_start, 9);
-  word * t7 = alloc(global_heap_start, 10);
-  word * t8 = alloc(global_heap_start, 11);
-
-  free(global_heap_start, t1);
-  free(global_heap_start, t3);
-  free(global_heap_start, t5);
-  free(global_heap_start, t7);
-  free(global_heap_start, t2);
-  free(global_heap_start, t4);
-  //print_avl(global_heap_start[3], 0, 2);nl(1);
-  //free(global_heap_start, t6);
-  //free(global_heap_start, t8);
-  print_avl(global_heap_start[3], 0, 2);
-  /* for (word i = 0; i < 40; ++i){ */
-  /*   word p = *(global_heap_start + i); */
-  /*   if (p >= global_heap_start){ */
-  /*     p -= (word)global_heap_start; */
-  /*     p /= 8; */
-  /*   } */
-  /*   print_uint(p, 16, 0);spc(1); */
-  /* }nl(1); */
-
-  //print_avl(global_heap_start[3], 0, 2);
-  /* free(global_heap_start, t6); */
-  /* free(global_heap_start, t8); */
-  /* Build os here */
+  run(bytecode);//, word * regs, word * n);
   while (1){};
 
   Disk->Close(Kernel);
