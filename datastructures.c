@@ -721,3 +721,38 @@ word set_add_str_key(word * heap, word * s, word * key, word * val){
   return set_add(heap, s, data, &pair_strcmp);
 }
 
+
+word * queue(word * heap){
+  Queue * q = (Queue*)alloc(heap, sizeof(Queue)/sizeof(word));
+  if (!q){return (word*)q;}
+  q->first = 0;
+  q->last = 0;
+  return (word*)q;
+}
+
+
+word * queue_push(word * heap, word * queue, word data){
+  Link * link = (Link*)alloc(heap, sizeof(Link)/sizeof(word));
+  if (!link){return (word*)link;}
+  Queue * q = (Queue*)queue;
+  link->data = data;
+  link->next = (word)(q->first);
+  link->prev = 0;
+  if (!q->first){q->last = (word)link;}
+  else{((Link*)(q->first))->prev = (word)link;}
+  q->first = (word)link;
+  return (word*)link;
+}
+
+
+word queue_pop(word * heap, word * queue){
+  Queue * q = (Queue*)queue;
+  Link * last = (Link*)(q->last);
+  if (!last){return 0;}
+  q->last = last->prev;
+  if (!q->last){q->first = 0;}
+  else{((Link*)(last->prev))->next = 0;}
+  word data = last->data;
+  free(heap, (word*)last);
+  return data;
+}

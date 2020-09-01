@@ -59,6 +59,17 @@ typedef struct avl_node{
 } AVL_Node;
 extern const word avl_node_sz;
 
+typedef struct queue{
+  word first;
+  word last;
+}Queue;
+
+typedef struct link{
+  word data;
+  word next;
+  word prev;
+}Link;
+
 word * object(word * heap, word * type, word size, word * contents, word n_words);
 word * array(word * heap, word size, word item_sz);
 word * array_find(word * arr, word * start, word * item, word (*eq_fn)(word *, word *, word *), word * extra_params);
@@ -82,6 +93,9 @@ word pair_strcmp(word * pair1, word * pair2);
 word * set(word * heap);
 word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*));
 word set_add_str_key(word * heap, word * s, word * key, word * val);
+word * queue(word * heap);
+word * queue_push(word * heap, word * queue, word data);
+word queue_pop(word * heap, word * queue);
 
 
 //util.c

@@ -222,9 +222,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
       return Status;
     }
   }
-  word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
-  array_delete(global_heap_start, kernel_src);
-
 
   //Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
   if (EFI_ERROR(Status)){
@@ -232,9 +229,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     return Status;
   }
 
-  
+  word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
+  array_delete(global_heap_start, kernel_src);
   run(bytecode);//, word * regs, word * n);
-  while (1){};
+  array_delete(global_heap_start, bytecode);
+
+  while (1){}
 
   Disk->Close(Kernel);
   Disk->Close(Disk);
