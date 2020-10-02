@@ -16,6 +16,7 @@ clang $CFLAGS -c -o asm.o asm.c
 clang $CFLAGS -c -o alloc.o alloc.c
 clang $CFLAGS -c -o kernel.o kernel.c
 clang $CFLAGS -c -o data.o gnu-efi*/lib/data.c
+#clang $CFLAGS -c -o ints.o interrupts.s
 clang $LDFLAGS -o BOOTX64.EFI ./*.o
 rm ./*.o
 
@@ -31,4 +32,4 @@ cp fat.img iso
 xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o os.iso iso
 rm -rf ./iso
 rm ./fat.img ./BOOTX64.EFI
-qemu-system-x86_64 -L /usr/share/ovmf -bios OVMF.fd -cdrom os.iso #-full-screen -device VGA,edid=on,xres=1366,yres=768 # (For when qemu has edid support)
+qemu-system-x86_64 -L /usr/share/ovmf -bios OVMF.fd -cdrom os.iso -m 1024M -d int -monitor stdio #-full-screen -device VGA,edid=on,xres=1366,yres=768 # (For when qemu has edid support)

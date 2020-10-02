@@ -15,10 +15,118 @@ const word word_max = UINTMAX_MAX;
 word * global_heap_start;
 word global_heap_size;
 
+uint32_t * fb_start = 0;
+UINTN b_hres = 0;    
+UINTN b_vres = 0;
+
+
+/* typedef __attribute__ ((__packed__)) struct DT_Ptr{ */
+/*   uint16_t size; */
+/*   uint64_t offset; */
+/* }dt_ptr; */
+
+
+/* typedef __attribute__ ((__packed__)) struct GDT_Entry { */
+/*   uint16_t limit_low; */
+/*   uint16_t base_low; */
+/*   uint8_t base_middle; */
+/*   uint8_t access; */
+/*   uint8_t granularity; */
+/*   uint8_t base_high; */
+/* }gdt_entry; */
+
+
+/* typedef __attribute__ ((__packed__)) struct IDT_Entry { */
+/*   uint16_t offset_1; */
+/*   uint16_t selector; */
+/*   uint8_t ist; */
+/*   uint8_t type_attr; */
+/*   uint16_t offset_2; */
+/*   uint32_t offset_3; */
+/*   uint32_t zero; */
+/* }idt_entry; */
+
+/* word GDT[2] = {0, 0x0020980000000000}; */
+/* idt_entry IDT[256]; */
+
 
 void shutdown(void){
   ST->RuntimeServices->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, NULL);
 }
+
+
+/* void gdt_init(){ */
+/*   asm volatile("cli"); */
+/*   // NOTE: This is weird... */
+/*   dt_ptr gdt_ptr = {sizeof(GDT)-1, (word)GDT}; */
+
+/*   //fb_print_uint(fb_start, ((word)1 << 43) | ((word)1 << 44) | ((word)1 << 47) | ((word)1 << 53), 16); */
+/*   /\* word old_ptr; *\/ */
+/*   /\* asm volatile ("sgdt %[idtptr]" : [idtptr]"=m"(old_ptr)); *\/ */
+/*   /\* fb_print_uint(fb_start, old_ptr, 0); *\/ */
+/*   asm volatile ("\ */
+/*     lgdt (%0)\n\ */
+/*     mov $0x10, %%ax\n" */
+/*     ::"r"(&gdt_ptr) */
+/*     :"memory", "ax"); */
+/*   //fb_print_uint(fb_start, gdt_ptr.size, 0); */
+/*   //word new_ptr; */
+/*   //asm volatile ("sgdt %[idtptr]\n" : [idtptr]"=m"(new_ptr)); */
+/*   //fb_print_uint(fb_start, new_ptr, 0); */
+/* }; */
+
+
+/* void interrupt_handler(void){ */
+/*   for (int i = 0; i < 100; ++i){fb_start[i] = 255;} */
+/*   outb(0x20, 0x20); */
+/* } */
+
+
+/* void set_idt_entry(word idx, word handler_addr){ */
+/*   IDT[idx].offset_1 = handler_addr & 0xffff; */
+/*   IDT[idx].selector = 0x08; */
+/*   IDT[idx].ist = 0; */
+/*   IDT[idx].type_attr = 0x8E; */
+/*   IDT[idx].offset_2 = (handler_addr >> 16) & 0xffff; */
+/*   IDT[idx].offset_3 = (handler_addr >> 32); */
+/*   IDT[idx].zero = 0; */
+/* } */
+
+
+/* void interrupts_init(void){ */
+/*   extern int int_routine(void); */
+/*   //Magically remap the PIC */
+/*   outb(0x20, 0x11); */
+/*   outb(0xA0, 0x11); */
+/*   outb(0x21, 0x20); */
+/*   outb(0xA1, 0x28); // was 0x70 */
+/*   outb(0x21, 0x04); */
+/*   outb(0xA1, 0x02); */
+/*   outb(0x21, 0x01); */
+/*   outb(0xA1, 0x01); */
+/*   outb(0x21, 0x0); */
+/*   outb(0xA1, 0x0); */
+
+/*   for (word i = 32; i < 256; ++i){ */
+/*     set_idt_entry(i, (word)int_routine); */
+/*   } */
+
+  
+/*   word idt_ptr = ((word)IDT << 16); */
+/*   word limit = sizeof(idt_entry) * 256 - 1; */
+/*   idt_ptr |= limit; */
+/*   /\* word old_ptr; *\/ */
+/*   /\* asm volatile ("sidt %[idtptr]" : [idtptr]"=m"(old_ptr)); *\/ */
+/*   asm volatile ("lidt (%0)\n" // TODO: add sti instr. */
+/*        ::"r"(&idt_ptr) */
+/*        :"memory"); */
+/*   //for (int i = 0; i < 100; ++i){fb_start[100+i] = 0xFFFF;} */
+/*   /\* word new_ptr; *\/ */
+/*   /\* asm volatile ("sidt %[idtptr]" : [idtptr]"=m"(new_ptr)); *\/ */
+/*   /\* print_uint(new_ptr, 16, 8);nl(1); *\/ */
+/*   /\* for (word i = 0; i < 1000000000; ++i){} *\/ */
+/*   asm("int $0x80"); */
+/* } */
 
 
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
@@ -28,6 +136,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /* Store the system table in a global variable */
   ST = SystemTable;
 
+  ST->BootServices->SetWatchdogTimer(0, 0, 0, NULL);
 
   word * rsdp = 0;
   //TODO: better way to do this?
@@ -87,9 +196,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /*   return Status; */
   /* } */
   
-  uint32_t * fb_start = 0; 
-  UINTN b_hres = 0;    
-  UINTN b_vres = 0;
   UINTN screen_mode = 0;
   UINTN px_mode = 0;
   UINTN px_per_line = 0;
@@ -223,12 +329,35 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     }
   }
 
-  //Status = ST->BootServices->ExitBootServices(ImageHandle, map_key);
-  if (EFI_ERROR(Status)){
-    ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n");
-    return Status;
-  }
+  /* Status = ST->BootServices->ExitBootServices(ImageHandle, map_key); */
+  /* if (EFI_ERROR(Status)){ */
+  /*   ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n"); */
+  /*   return Status; */
+  /* } */
 
+  /* while(1){ */
+  /*   EFI_INPUT_KEY kp; */
+  /*   EFI_STATUS S = get_char(&kp); */
+  /*   if (!EFI_ERROR(S)){ */
+  /*     word x = kp.UnicodeChar; */
+  /*     x = (x >= 65) ? x - 87 : x - 48; */
+  /*     fb_print_char(fb_start, x, 0x00000000, 0x00FFFFFF); */
+  /*   } */
+  /* } */
+
+
+  // Doesn't work
+  /* EFI_GUID pp_guid = {0x31878c87,0xb75,0x11d5, {0x9a,0x4f,0x00,0x90,0x27,0x3f,0xc1,0x4d}}; */
+  /* EFI_SIMPLE_POINTER_PROTOCOL mouse; */
+  /* EFI_SIMPLE_POINTER_STATE m_state; */
+  /* Status = ST->BootServices->LocateProtocol(&pp_guid, NULL, (void**)&mouse); */
+  /* if (EFI_ERROR(Status)){return Status;} */
+  /* while (1){ */
+  /*   Status = mouse.GetState(&mouse, &m_state); */
+  /*   *(fb_start + m_state.RelativeMovementY * b_hres + m_state.RelativeMovementX) = 0x00FFFFFF; */
+  /* } */
+
+  init_types();
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
   array_delete(global_heap_start, kernel_src);
   run(bytecode);//, word * regs, word * n);

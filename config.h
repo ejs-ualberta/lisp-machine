@@ -1,7 +1,8 @@
 #pragma once
 
-#include "stdint.h"
-
+#include <stdint.h>
+#include <efi.h>
+#include <efilib.h>
 
 #define MAX_HRES 1366
 #define MAX_VRES 768
@@ -12,7 +13,12 @@ typedef intmax_t sword;
 typedef uint16_t wchar_t;
 
 
-//extern word * global_heap_start;
+extern word * global_heap_start;
+extern word global_heap_size;
+
+extern uint32_t * fb_start;
+extern UINTN b_hres;    
+extern UINTN b_vres;
 
 
 // debug.c
@@ -20,6 +26,8 @@ int uintn_to_str(wchar_t * buf, word buf_sz, word num, word base);
 void print_uint(word val, word base, word padding);
 void spc(word n);
 void nl(word n);
+void fb_print_char(uint32_t * loc, word val, uint32_t bc, uint32_t fc);
+void fb_print_uint(uint32_t * loc, word val, word padding);
 
 
 // alloc.c
@@ -37,6 +45,13 @@ void run(word * bytecode);
 
 
 //datastructures.c
+extern word * num_type;
+extern word * string_type;
+extern word * array_type;
+extern word * set_type;
+extern word * function_type;
+extern word * cell_type;
+
 typedef struct object{
   word max_sz; //(in umds, includes size of obj, must be here)
   word refcount;
@@ -88,6 +103,7 @@ word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_basic_cmp(word * n1, word * n2);
 word avl_mem_cmp(word * n1, word * n2);
 void print_avl(word * tree, word space, word inc);
+void init_types(void);
 word * pair(word * heap, word * obj1, word * obj2);
 word pair_strcmp(word * pair1, word * pair2);
 word * set(word * heap);
@@ -109,3 +125,5 @@ word atomic_cas(word * ptr, word cmp, word new);
 word nat_pow(word base, word exp);
 word abs(word x);
 word arithmetic_shift_right(word val, word n);
+void outb(uint16_t port, uint8_t val);
+EFI_STATUS get_char(EFI_INPUT_KEY * input_key);

@@ -17,6 +17,7 @@ word * cell_type;
 const word obj_sz = sizeof(Object)/sizeof(word);
 
 word * object(word * heap, word * type, word size, word * contents, word n_words){
+  if (size < n_words){return (word*)0;}
   word * mem = alloc(heap, size + obj_sz - 1);
   if (!mem){return (word*)0;}
   Object * obj = (Object*)(mem - 1);
@@ -666,6 +667,23 @@ word * check_balance_factors(word * tr){
     if (!(lh + 1 == rh)){return (word*)tree;}
   }
   return 0;
+}
+
+
+void init_types(void){
+  word str_str[3] = {'s', 't', 'r'};
+  string_type = object(global_heap_start , (word*)0, 3, str_str, 3);
+  ((Object *)string_type)->type = (word)string_type;
+  word num_str[3] = {'n', 'u', 'm'};
+  num_type = object(global_heap_start, string_type, 3, num_str, 3);
+  word arr_str[3] = {'a', 'r', 'r'};
+  array_type = object(global_heap_start, string_type, 3, arr_str, 3);
+  word set_str[3] = {'s', 'e', 't'};
+  set_type = object(global_heap_start, string_type, 3, set_str, 3);
+  word fun_str[3] = {'f', 'u', 'n'};
+  function_type = object(global_heap_start, string_type, 3, fun_str, 3);
+  word cel_str[3] = {'c', 'e', 'l'};
+  cell_type = object(global_heap_start, string_type, 3, cel_str, 3);
 }
 
 

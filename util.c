@@ -1,3 +1,7 @@
+#include <stdint.h>
+#include <efi.h>
+#include <efilib.h>
+
 #include "config.h"
 
 
@@ -81,4 +85,21 @@ word abs(word x){
 
 word arithmetic_shift_right(word val, word n){
   return (val >> n) | (word)-1 << (sizeof(word)*8 - n);
+}
+
+
+void outb(uint16_t port, uint8_t val){
+    asm volatile ( "outb %0, %1" ::"a"(val),"Nd"(port));
+}
+
+
+EFI_STATUS get_char(EFI_INPUT_KEY * input_key){
+  EFI_STATUS Status = ST->ConIn->ReadKeyStroke(ST->ConIn, input_key);
+  return Status;
+}
+
+
+EFI_STATUS get_mouse_pos(){
+  EFI_STATUS Status;
+  return Status;
 }
