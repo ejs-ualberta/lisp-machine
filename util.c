@@ -99,7 +99,7 @@ EFI_STATUS get_char(EFI_INPUT_KEY * input_key){
 }
 
 
-EFI_STATUS get_mouse_pos(){
-  EFI_STATUS Status;
-  return Status;
-}
+/* EFI_STATUS get_mouse_pos(){ */
+/*   EFI_STATUS Status; */
+/*   return Status; */
+/* } */

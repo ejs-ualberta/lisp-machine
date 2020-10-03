@@ -699,9 +699,9 @@ word * pair(word * heap, word * obj1, word * obj2){
 }
 
 
-word pair_strcmp(word * pair1, word * pair2){
-  Object * p1 = (Object*)pair1;
-  Object * p2 = (Object*)pair2;
+word obj_cmp(word * obj1, word * obj2){
+  Object * p1 = obj1;
+  Object * p2 = obj2;
   if (p1->size < p2->size){
     return 1;
   }else if (p1->size > p2->size){
@@ -712,11 +712,19 @@ word pair_strcmp(word * pair1, word * pair2){
       return 1;
     }else if (p1->contents[i] > p2->contents[i]){
       return (word)-1;
-    }else{
-      return 0;
-    }  
+    } 
   }
-  return 0; // To silence warning.
+  return 0;
+}
+
+
+word set_keycmp(word * pair1, word * pair2){
+  Object * p1 = (Object*)(((AVL_Node*)pair1)->data);
+  Object * p2 = (Object*)(((AVL_Node*)pair2)->data);
+  word * k1 = (word*)p1->contents[0];
+  word * k2 = (word*)p2->contents[0];
+  word val = obj_cmp(k1, k2);
+  return val;
 }
 
 
@@ -736,7 +744,7 @@ word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*)){
 
 word set_add_str_key(word * heap, word * s, word * key, word * val){
   word * data = pair(heap, key, val);
-  return set_add(heap, s, data, &pair_strcmp);
+  return set_add(heap, s, data, &set_keycmp);
 }
 
 

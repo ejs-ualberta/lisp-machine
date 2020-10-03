@@ -357,6 +357,8 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /*   *(fb_start + m_state.RelativeMovementY * b_hres + m_state.RelativeMovementX) = 0x00FFFFFF; */
   /* } */
 
+  
+
   init_types();
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
   array_delete(global_heap_start, kernel_src);
