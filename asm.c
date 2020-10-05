@@ -280,6 +280,7 @@ word * compile(word * heap, word * code, word code_sz){
       ret_code = expect_whitespace(code, code_sz, &idx);
       if (ret_code){goto error;}
     }
+
     // Check if there is one or more args required. The last one can either be a reg or an imm val.
     if (n_args){
       // If parsing the last arg fails, provide a place to return to.
@@ -328,7 +329,7 @@ word * compile(word * heap, word * code, word code_sz){
     arr = tmp_arr;
     ignore_whitespace(code, code_sz, &idx);
     ++prgm_ctr;
-  }
+  }while(1);
 
   // Resolve label refs.
   for (word i = 0; i < array_len(lbl_refs); ++i){
@@ -359,6 +360,7 @@ word * compile(word * heap, word * code, word code_sz){
 
 word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   word * machine = set(global_heap_start);
+  //((Object*)machine)->refcount += 1;
 
   word st_key[7] = {'s', 'y', 's', '_', 't', 'a', 'b'};
   word * st_str = object(global_heap_start, string_type, 7, st_key, 7);
@@ -389,6 +391,7 @@ word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   word fb_set_key[2] = {'f', 'b'};
   word * fb_set_str = object(global_heap_start, string_type, 2, fb_set_key, 2);
   word * fb_set = set(global_heap_start);
+  set_add_str_key(global_heap_start, pc_set, fb_set_str, fb_set);
   word fb_base_key[4] = {'b', 'a', 's', 'e'};
   word * fb_base_str = object(global_heap_start, string_type, 4, fb_base_key, 4);
   word * fb_base_val = object(global_heap_start, num_type, 1, (word*)&fb_start, 1);
@@ -401,7 +404,17 @@ word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   set_add_str_key(global_heap_start, fb_set, fb_base_str, fb_base_val);
   set_add_str_key(global_heap_start, fb_set, fb_hres_str, fb_hres_val);
   set_add_str_key(global_heap_start, fb_set, fb_vres_str, fb_vres_val);
-  set_add_str_key(global_heap_start, pc_set, fb_set_str, fb_set);
+
+  word mem_key[3] = {'m', 'e', 'm'};
+  word * mem_set_str = object(global_heap_start, string_type, 3, mem_key, 3);
+  word * mem_set = set(global_heap_start);
+  set_add_str_key(global_heap_start, pc_set, mem_set_str, mem_set);
+  word * mem_base = object(global_heap_start, num_type, 1, (word*)&global_heap_start, 1);
+  set_add_str_key(global_heap_start, mem_set, fb_base_str, mem_base);
+  word mem_sz_key[3] = {'s', 'z'};
+  word * mem_sz_str = object(global_heap_start, string_type, 2, mem_sz_key, 2);
+  word * mem_sz = object(global_heap_start, num_type, 1, (word*)&global_heap_size, 1);
+  set_add_str_key(global_heap_start, mem_set, mem_sz_str, mem_sz);
 
   return machine;
 }

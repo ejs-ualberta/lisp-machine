@@ -1,3 +1,5 @@
-MAIN:
-	and r1A r1E r1E
-	xor r1F r1F r1F
+PUSH:	ads r8 r8 1
+	str r0 r9 0
+
+POP:	ldr r0 r8 0
+	sbs r8 r8 0

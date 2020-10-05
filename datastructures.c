@@ -700,8 +700,8 @@ word * pair(word * heap, word * obj1, word * obj2){
 
 
 word obj_cmp(word * obj1, word * obj2){
-  Object * p1 = obj1;
-  Object * p2 = obj2;
+  Object * p1 = (Object*)obj1;
+  Object * p2 = (Object*)obj2;
   if (p1->size < p2->size){
     return 1;
   }else if (p1->size > p2->size){

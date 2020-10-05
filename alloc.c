@@ -36,6 +36,7 @@ word * init_heap(word * heap_start, word heap_sz){
 
 
 word * alloc(word * heap, word mem_sz){
+  extern void avl_move(word ** tr, word * dest, word * src);
   mem_sz += umds_sz;
   if (mem_sz < min_alloc_sz){mem_sz = min_alloc_sz;}
 
@@ -44,14 +45,16 @@ word * alloc(word * heap, word mem_sz){
   word * mem_ptr = (word*)h_info->fmds_ptr;
   AVL_Node * min_ge = (AVL_Node*)avl_min_ge(mem_ptr, mem_sz);
   if (!min_ge){return 0;}
+  word old_sz = min_ge->data;
 
-  mem_ptr = _avl_delete(tr, (word*)min_ge, &avl_mem_cmp);
-  if (min_ge->data >= mem_sz + min_alloc_sz){
-    word os = min_ge->data - mem_sz;
+  word * deleted = _avl_delete(tr, (word*)min_ge, &avl_mem_cmp);
+  if (deleted != (word*)min_ge){avl_move(tr, deleted, (word*)min_ge);} //min_ge now has the value of its successor.
+  if (old_sz >= mem_sz + min_alloc_sz){
+    word new_sz = old_sz - mem_sz;
     word * new_ptr = mem_ptr + mem_sz;
-    _avl_insert(tr, new_ptr, os, &avl_mem_cmp);
+    _avl_insert(tr, new_ptr, new_sz, &avl_mem_cmp);
   }else{
-    mem_sz = min_ge->data;
+    mem_sz = old_sz;
   }
 
   umds * mem = (umds*)(mem_ptr);
