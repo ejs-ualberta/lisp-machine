@@ -1,5 +1,10 @@
-PUSH:	ads r8 r8 1
-	str r0 r9 0
+SETUP:	ads r1A r1E 0
+	jnc r1F r1A MAIN:
 
-POP:	ldr r0 r8 0
-	sbs r8 r8 0
+PUSH:	ads r18 r18 1
+	str r0 r18 0
+
+POP:	ldr r0 r18 0
+	sbs r8 r18 1
+
+MAIN:	xor r1F r1F r1F

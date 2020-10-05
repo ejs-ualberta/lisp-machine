@@ -329,7 +329,7 @@ word * compile(word * heap, word * code, word code_sz){
     arr = tmp_arr;
     ignore_whitespace(code, code_sz, &idx);
     ++prgm_ctr;
-  }while(1);
+  }
 
   // Resolve label refs.
   for (word i = 0; i < array_len(lbl_refs); ++i){
@@ -424,7 +424,7 @@ void run(word * bytecode){
   // Add 1 so there is a secret register for immediates (to simplify the code)
   word regs[num_regs + 1] = {0};
   regs[sr] = exc_cont_mask;
-  regs[pc] = (word)bytecode;
+  regs[pc] = (word)bytecode / sizeof(word);
 
   word arg_mask = ((word)1 << arg_size) - 1;
   word args[mx_reg_args] = {0};
@@ -435,12 +435,10 @@ void run(word * bytecode){
     /* if (!EFI_ERROR(S)){ */
       
     /* } */
-
-    word instr = *(word*)(regs[pc]);
+    word instr = *(word*)(regs[pc] * sizeof(word));
     word opcode = (instr & inst_mask) >> opcode_start;
     word n_args = instructions[opcode].n_args;
     word uses_reg = (instr & instr_uses_reg);
-
     if (!uses_reg && n_args){
       word idx = opcode_len + (n_args - 1) * arg_size;
       word imm = instr & get_flx_op_mask(n_args);
@@ -513,8 +511,9 @@ void run(word * bytecode){
     case jnc:
       if (regs[args[0]]){
 	regs[pc] = regs[args[1]] + regs[args[2]];
+	continue;
       }
-      continue;
+      break;
     case exc:
       break;
       continue;
