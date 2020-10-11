@@ -219,7 +219,6 @@ word * compile(word * heap, word * code, word code_sz){
   if (!arr){return (word*)0;}
   word * lbl_refs = array(heap, code_sz / 8, lbl_info_sz);
   if (!lbl_refs){goto error2;}
-
   word * lbls = array(heap, code_sz / 8, lbl_info_sz);
   if (!lbls){goto error1;}
 
