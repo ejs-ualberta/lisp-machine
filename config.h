@@ -41,7 +41,8 @@ word get_mem_sz(word * addr);
 
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
-void run(word * bytecode);
+word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable, word * syscalls);
+void run(word * bytecode, word * machine);
 
 
 //datastructures.c
@@ -128,3 +129,8 @@ word abs(word x);
 word arithmetic_shift_right(word val, word n);
 void outb(uint16_t port, uint8_t val);
 EFI_STATUS get_char(EFI_INPUT_KEY * input_key);
+
+
+//syscalls.c
+word * syscall_get_char(word * args);
+word * syscall_print_char(word * args);

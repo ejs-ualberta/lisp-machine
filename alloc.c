@@ -46,24 +46,26 @@ word * alloc(word * heap, word mem_sz){
   AVL_Node * min_ge = (AVL_Node*)avl_min_ge(mem_ptr, mem_sz);
   if (!min_ge){return 0;}
   word old_sz = min_ge->data;
-
+  //print_avl(heap[3], 0, 2);
   word * deleted = _avl_delete(tr, (word*)min_ge, &avl_mem_cmp);
-  if (deleted != (word*)min_ge){avl_move(tr, deleted, (word*)min_ge);} //min_ge now has the value of its successor.
+  if (deleted != (word*)min_ge){avl_move(tr, deleted, (word*)min_ge);} // Move successor of min_ge back to where it was.
   if (old_sz >= mem_sz + min_alloc_sz){
     word new_sz = old_sz - mem_sz;
-    word * new_ptr = mem_ptr + mem_sz;
+    word * new_ptr = (word*)min_ge + mem_sz;
     _avl_insert(tr, new_ptr, new_sz, &avl_mem_cmp);
+    //print_avl(heap[3], 0, 2);nl(1);
   }else{
     mem_sz = old_sz;
   }
 
-  umds * mem = (umds*)(mem_ptr);
+  umds * mem = (umds*)(min_ge);
   mem->mem_sz = mem_sz;
   return (word*)&(mem->mem);
 }
 
 
 void free(word * heap, word * addr){
+  //print_avl(heap[3], 0, 2);nl(1);
   hds * h_info = (hds*)heap;
   if (addr < (word*)h_info + hds_sz || addr >= (word*)h_info + h_info->heap_end){
     return;

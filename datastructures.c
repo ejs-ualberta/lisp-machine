@@ -625,9 +625,9 @@ word avl_mem_cmp(word * n1, word * n2){
 void _print_avl(word * tree, word space, word inc){
   AVL_Node * node = (AVL_Node*)tree;
   if (!tree){return;}
-  //spc(space);print_uint(tree, 16, 8);nl(1);
   spc(space);print_uint(tree[0] & 3, 16, 2);//nl(1);
-  spc(1);print_uint(tree[3], 16, 2);nl(1);
+  spc(1);print_uint(tree[3], 16, 2);
+  //spc(1);print_uint(tree, 16, 8);nl(1);
   _print_avl((word*)(node->right), space + inc, inc);
   _print_avl((word*)(node->left), space, inc);
 }

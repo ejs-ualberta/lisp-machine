@@ -359,12 +359,18 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   
   init_types();
+  word * syscalls = array(global_heap_start, 16, 1);
+  array_append(global_heap_start, syscalls, (word*)&syscall_get_char);
+  word * machine = init_machine(ImageHandle, SystemTable, syscalls);
+  array_delete(global_heap_start, syscalls);
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
   array_delete(global_heap_start, kernel_src);
-  run(bytecode);//, word * regs, word * n);
+  run(bytecode, machine);//, word * regs, word * n);
   array_delete(global_heap_start, bytecode);
 
-  while (1){fb_print_uint(fb_start, 0xdeadbeef, 0);}
+  while (1){
+    fb_print_uint(fb_start, 0xdeadbeef, 0);
+  }
 
   Disk->Close(Kernel);
   Disk->Close(Disk);
