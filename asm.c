@@ -357,7 +357,7 @@ word * compile(word * heap, word * code, word code_sz){
 }
 
 
-word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable, word * syscalls){
+word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   word * machine = set(global_heap_start);
   //((Object*)machine)->refcount += 1;
 
@@ -415,19 +415,14 @@ word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable, word
   word * mem_sz = object(global_heap_start, num_type, 1, (word*)&global_heap_size, 1);
   set_add_str_key(global_heap_start, mem_set, mem_sz_str, mem_sz);
 
-  word sys_key[3] = {'s', 'y', 's'};
-  word * sys_str = object(global_heap_start, string_type, 3, sys_key, 3);
-  word * sys_val = object(global_heap_start, array_type, array_len(syscalls), syscalls, array_len(syscalls));
-  set_add_str_key(global_heap_start, machine, sys_str, sys_val);
-
   return machine;
 }
 
 
-void run(word * bytecode, word * machine){
+void run(word * bytecode, word * syscalls){
   // Add 1 so there is a secret register for immediates (to simplify the code)
   word regs[num_regs + 1] = {0};
-  regs[ir] = (word)machine;
+  regs[ir] = (word)syscalls;
   regs[sr] = exc_cont_mask;
   regs[pc] = (word)bytecode / sizeof(word);
 
@@ -520,6 +515,7 @@ void run(word * bytecode, word * machine){
       }
       break;
     case exc:
+      //regs[rr] = (word)((word*(*)(word*))*(word*)((word*)regs[args[1]] + regs[args[2]]))((word*)regs[args[0]]);
       break;
     default:
       break;

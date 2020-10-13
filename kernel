@@ -7,4 +7,5 @@ PUSH:	ads r18 r18 1
 POP:	ldr r0 r18 0
 	sbs r8 r18 1
 
-MAIN:	xor r1F r1F r1F
+MAIN:	exc r0 r1C 1
+	xor r1F r1F r1F
