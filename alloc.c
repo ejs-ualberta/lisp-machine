@@ -14,11 +14,10 @@ typedef struct heap_datastructure{
 
 const word umds_sz = sizeof(umds)/sizeof(word);
 const word hds_sz = sizeof(hds)/sizeof(word);
-word min_alloc_sz = 0; // Note: This is ugly and stupid because according to C avl_node_sz is not a compile time constant. (set in init_heap)
+const word min_alloc_sz = sizeof(AVL_Node)/sizeof(word);
 
 
 word * init_heap(word * heap_start, word heap_sz){
-  min_alloc_sz = avl_node_sz;
   if ((word)heap_start % sizeof(word)){return 0;}
   if (heap_sz < min_alloc_sz + hds_sz){return 0;}
 

@@ -419,10 +419,10 @@ word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 }
 
 
-void run(word * bytecode, word * syscalls){
+void run(word * bytecode, word * machine){
   // Add 1 so there is a secret register for immediates (to simplify the code)
   word regs[num_regs + 1] = {0};
-  regs[ir] = (word)syscalls;
+  regs[ir] = (word)machine;
   regs[sr] = exc_cont_mask;
   regs[pc] = (word)bytecode / sizeof(word);
 

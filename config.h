@@ -75,7 +75,6 @@ typedef struct avl_node{
   word right;
   word data;
 } AVL_Node;
-extern const word avl_node_sz;
 
 typedef struct queue{
   word first;

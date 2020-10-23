@@ -99,13 +99,6 @@ word array_len(word * arr){
 }
 
 
-const word avl_node_sz = sizeof(AVL_Node)/sizeof(word);
-
-word get_avl_node_sz(void){
-  return avl_node_sz;
-}
-
-
 AVL_Node * get_parent(AVL_Node * node){
   if (!node){return 0;}
   return (AVL_Node *)(node->prev & ((word)-1 << 2));
@@ -474,7 +467,7 @@ word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*)){
 
 word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
   AVL_Node ** tree = (AVL_Node**)tr;
-  word * node = alloc(heap, avl_node_sz);
+  word * node = alloc(heap, sizeof(AVL_Node)/sizeof(word));
   if (!node){
     return 1;
   }
