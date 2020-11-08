@@ -1,0 +1,7 @@
+Calling convention:
+Caller allocates space on the stack for the return value.
+Caller pushes params left to right onto stack (without touching sp)
+All gp registers callee saved.
+Callee saves fp, lr, and any registers it uses on its stack frame, then sets fp to point to its stack frame.
+Do stuff.
+Callee restores old fp, lr and pops everything (including its args) from the stack, and also returns a value on the stack. (it will be above sp)

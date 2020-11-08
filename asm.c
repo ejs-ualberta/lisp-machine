@@ -4,7 +4,6 @@
 
 #include "config.h"
 
-
 const word opcode_name_len = 4;
 const word reg_des[] = {(word)'r', 0};
 const word neg_sgn[] = {(word)'-', 0};
@@ -33,7 +32,7 @@ enum reg_aliases{
   fp,
   bp, // pgrm base ptr
   lr, // link reg
-  ir, // machine register
+  ir, // ivt register
   rr, // result register, used for upper reg when multiplying/dividing.
   pc,
   sr, // status register (exec cont. bit, carry bits, etc)
@@ -357,69 +356,7 @@ word * compile(word * heap, word * code, word code_sz){
 }
 
 
-word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
-  word * machine = set(global_heap_start);
-  //((Object*)machine)->refcount += 1;
-
-  word st_key[7] = {'s', 'y', 's', '_', 't', 'a', 'b'};
-  word * st_str = object(global_heap_start, string_type, 7, st_key, 7);
-  word * st_val = object(global_heap_start, num_type, 1, (word*)SystemTable, 1);
-  set_add_str_key(global_heap_start, machine, st_str, st_val);
-
-  word img_key[3] = {'i', 'm', 'g'};
-  word * img_str = object(global_heap_start, string_type, 3, img_key, 3);
-  word * img_val = object(global_heap_start, num_type, 1, (word*)ImageHandle, 1);
-  set_add_str_key(global_heap_start, machine, img_str, img_val);
-
-  word types_key[5] = {'t', 'y', 'p', 'e', 's'};
-  word * types_str = object(global_heap_start, string_type, 5, types_key, 5);
-  word * types_set = set(global_heap_start);
-  set_add_str_key(global_heap_start, types_set, string_type, string_type);
-  set_add_str_key(global_heap_start, types_set, num_type, num_type);
-  set_add_str_key(global_heap_start, types_set, array_type, array_type);
-  set_add_str_key(global_heap_start, types_set, set_type, set_type);
-  set_add_str_key(global_heap_start, types_set, function_type, function_type);
-  set_add_str_key(global_heap_start, types_set, cell_type, cell_type);
-  set_add_str_key(global_heap_start, machine, types_str, types_set);
-
-  word pc_key[2] = {'p', 'c'};
-  word * pc_str = object(global_heap_start, string_type, 2, pc_key, 2);
-  word * pc_set = set(global_heap_start);
-  set_add_str_key(global_heap_start, machine, pc_str, pc_set);
-
-  word fb_set_key[2] = {'f', 'b'};
-  word * fb_set_str = object(global_heap_start, string_type, 2, fb_set_key, 2);
-  word * fb_set = set(global_heap_start);
-  set_add_str_key(global_heap_start, pc_set, fb_set_str, fb_set);
-  word fb_base_key[4] = {'b', 'a', 's', 'e'};
-  word * fb_base_str = object(global_heap_start, string_type, 4, fb_base_key, 4);
-  word * fb_base_val = object(global_heap_start, num_type, 1, (word*)&fb_start, 1);
-  word fb_hres_key[4] = {'h', 'r', 'e', 's'};
-  word * fb_hres_str = object(global_heap_start, string_type, 4, fb_hres_key, 4);
-  word * fb_hres_val = object(global_heap_start, num_type, 1, (word*)&b_hres, 1);
-  word fb_vres_key[4] = {'v', 'r', 'e', 's'};
-  word * fb_vres_str = object(global_heap_start, string_type, 4, fb_vres_key, 4);
-  word * fb_vres_val = object(global_heap_start, num_type, 1, (word*)&b_vres, 1);
-  set_add_str_key(global_heap_start, fb_set, fb_base_str, fb_base_val);
-  set_add_str_key(global_heap_start, fb_set, fb_hres_str, fb_hres_val);
-  set_add_str_key(global_heap_start, fb_set, fb_vres_str, fb_vres_val);
-
-  word mem_key[3] = {'m', 'e', 'm'};
-  word * mem_set_str = object(global_heap_start, string_type, 3, mem_key, 3);
-  word * mem_set = set(global_heap_start);
-  set_add_str_key(global_heap_start, pc_set, mem_set_str, mem_set);
-  word * mem_base = object(global_heap_start, num_type, 1, (word*)&global_heap_start, 1);
-  set_add_str_key(global_heap_start, mem_set, fb_base_str, mem_base);
-  word mem_sz_key[3] = {'s', 'z'};
-  word * mem_sz_str = object(global_heap_start, string_type, 2, mem_sz_key, 2);
-  word * mem_sz = object(global_heap_start, num_type, 1, (word*)&global_heap_size, 1);
-  set_add_str_key(global_heap_start, mem_set, mem_sz_str, mem_sz);
-
-  return machine;
-}
-
-
-void run(word * bytecode, word * machine){
+word run(word * bytecode, word * machine){
   // Add 1 so there is a secret register for immediates (to simplify the code)
   word regs[num_regs + 1] = {0};
   regs[ir] = (word)machine;
@@ -457,6 +394,7 @@ void run(word * bytecode, word * machine){
       args[i-1] = instr & arg_mask;
     }
 
+    word x, y;
     switch (opcode){
     case acx:
       regs[args[1]] = atomic_cas((word*)regs[args[0]], regs[args[1]], regs[args[2]]);
@@ -468,18 +406,22 @@ void run(word * bytecode, word * machine){
       regs[args[0]] = regs[args[1]] + (~regs[args[2]] + 1);
       break;
     case mls:
-      regs[args[0]] = (word)((sword)args[args[1]] * (sword)regs[args[2]]);
+      regs[args[0]] = (word)((sword)regs[args[1]] * (sword)regs[args[2]]);
       break;
     case mlu:
       regs[args[0]] = regs[args[1]] * regs[args[2]];
       break;
     case dvs:
-      regs[args[0]] = (word)((sword)regs[args[1]] / (sword)regs[args[2]]);
-      regs[rr] = (word)((sword)regs[args[1]] % (sword)regs[args[2]]);
+      x = (word)((sword)regs[args[1]] / (sword)regs[args[2]]);
+      y = (word)((sword)regs[args[1]] % (sword)regs[args[2]]);
+      regs[rr] = y;
+      regs[args[0]] = x;
       break;
     case dvu:
-      regs[args[0]] = regs[args[1]] / regs[args[2]];
-      regs[rr] = regs[args[1]] % regs[args[2]];
+      x = regs[args[1]] / regs[args[2]];
+      y = regs[args[1]] % regs[args[2]];
+      regs[rr] = y;
+      regs[args[0]] = x;
       break;
     case and:
       regs[args[0]] = regs[args[1]] & regs[args[2]];
@@ -503,10 +445,10 @@ void run(word * bytecode, word * machine){
       }
       break;
     case ldr:
-      regs[args[0]] = *(word*)(regs[args[1]] + regs[args[2]]);
+      regs[args[0]] = *(word*)(regs[args[1]] + sizeof(word)*regs[args[2]]);
       break;
     case str:
-      *(word*)(regs[args[1]] + regs[args[2]]) = regs[args[0]];
+      *(word*)(regs[args[1]] + sizeof(word)*regs[args[2]]) = regs[args[0]];
       break;
     case jnc:
       if (regs[args[0]]){
@@ -520,7 +462,72 @@ void run(word * bytecode, word * machine){
     default:
       break;
     }
-    
+
+    print_uint(regs[pc], 16, 0);nl(1);
     ++(regs[pc]);
   }
+  return regs[rr];
+}
+
+
+word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
+  word * machine = set(global_heap_start);
+  ((Object*)machine)->refcount += 1;
+
+  word st_key[7] = {'s', 'y', 's', '_', 't', 'a', 'b'};
+  word * st_str = object(global_heap_start, string_type, 7, st_key, 7);
+  word * st_val = object(global_heap_start, num_type, 1, (word*)SystemTable, 1);
+  set_add_str_key(global_heap_start, machine, st_str, st_val);
+
+  word img_key[3] = {'i', 'm', 'g'};
+  word * img_str = object(global_heap_start, string_type, 3, img_key, 3);
+  word * img_val = object(global_heap_start, num_type, 1, (word*)ImageHandle, 1);
+  set_add_str_key(global_heap_start, machine, img_str, img_val);
+
+  word types_key[5] = {'t', 'y', 'p', 'e', 's'};
+  word * types_str = object(global_heap_start, string_type, 5, types_key, 5);
+  word * types_set = set(global_heap_start);
+  set_add_str_key(global_heap_start, types_set, string_type, string_type);
+  set_add_str_key(global_heap_start, types_set, num_type, num_type);
+  set_add_str_key(global_heap_start, types_set, array_type, array_type);
+  set_add_str_key(global_heap_start, types_set, set_type, set_type);
+  set_add_str_key(global_heap_start, types_set, function_type, function_type);
+  set_add_str_key(global_heap_start, types_set, cell_type, cell_type);
+  /* set_add_str_key(global_heap_start, types_set, native_type, native_type); */
+  /* set_add_str_key(global_heap_start, machine, types_str, types_set); */
+
+  word pc_key[2] = {'p', 'c'};
+  word * pc_str = object(global_heap_start, string_type, 2, pc_key, 2);
+  word * pc_set = set(global_heap_start);
+  set_add_str_key(global_heap_start, machine, pc_str, pc_set);
+
+  word fb_set_key[2] = {'f', 'b'};
+  word * fb_set_str = object(global_heap_start, string_type, 2, fb_set_key, 2);
+  word * fb_set = set(global_heap_start);
+  set_add_str_key(global_heap_start, pc_set, fb_set_str, fb_set);
+  word fb_base_key[4] = {'b', 'a', 's', 'e'};
+  word * fb_base_str = object(global_heap_start, string_type, 4, fb_base_key, 4);
+  word * fb_base_val = object(global_heap_start, num_type, 1, (word*)&fb_start, 1);
+  word fb_hres_key[4] = {'h', 'r', 'e', 's'};
+  word * fb_hres_str = object(global_heap_start, string_type, 4, fb_hres_key, 4);
+  word * fb_hres_val = object(global_heap_start, num_type, 1, (word*)&b_hres, 1);
+  word fb_vres_key[4] = {'v', 'r', 'e', 's'};
+  word * fb_vres_str = object(global_heap_start, string_type, 4, fb_vres_key, 4);
+  word * fb_vres_val = object(global_heap_start, num_type, 1, (word*)&b_vres, 1);
+  set_add_str_key(global_heap_start, fb_set, fb_base_str, fb_base_val);
+  set_add_str_key(global_heap_start, fb_set, fb_hres_str, fb_hres_val);
+  set_add_str_key(global_heap_start, fb_set, fb_vres_str, fb_vres_val);
+
+  word mem_key[3] = {'m', 'e', 'm'};
+  word * mem_set_str = object(global_heap_start, string_type, 3, mem_key, 3);
+  word * mem_set = set(global_heap_start);
+  set_add_str_key(global_heap_start, pc_set, mem_set_str, mem_set);
+  word * mem_base = object(global_heap_start, num_type, 1, (word*)&global_heap_start, 1);
+  set_add_str_key(global_heap_start, mem_set, fb_base_str, mem_base);
+  word mem_sz_key[3] = {'s', 'z'};
+  word * mem_sz_str = object(global_heap_start, string_type, 2, mem_sz_key, 2);
+  word * mem_sz = object(global_heap_start, num_type, 1, (word*)&global_heap_size, 1);
+  set_add_str_key(global_heap_start, mem_set, mem_sz_str, mem_sz);
+
+  return machine;
 }
