@@ -19,8 +19,6 @@ uint32_t * fb_start = 0;
 UINTN b_hres = 0;    
 UINTN b_vres = 0;
 
-word * machine_info = 0;
-
 
 /* typedef __attribute__ ((__packed__)) struct DT_Ptr{ */
 /*   uint16_t size; */
@@ -361,13 +359,19 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   
   init_types();
-  machine_info = init_machine(ImageHandle, SystemTable);
+  word * machine_info = init_machine(ImageHandle, SystemTable);
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
-  if (!bytecode){
-    fb_print_uint(fb_start, 0xdeadc0de, 0);
-  }
   array_delete(global_heap_start, kernel_src);
-  run(bytecode, machine_info);
+
+  //Add stack space to bytecode
+  if (!bytecode){fb_print_uint(fb_start, 0xdeadc0de, 0);return 1;}
+  word zero = 0;
+  for (word i = 0; i < 1024; ++i){
+    bytecode = array_append(global_heap_start, bytecode, &zero);
+    if (!bytecode){fb_print_uint(fb_start, 0xdeadc0de, 0);return 1;}
+  }
+
+  fb_print_uint(fb_start, run(bytecode, machine_info), 0);
   array_delete(global_heap_start, bytecode);
 
   while (1){

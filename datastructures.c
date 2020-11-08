@@ -12,6 +12,8 @@ word * array_type;
 word * set_type;
 word * function_type;
 word * cell_type;
+/* word * native_type; */
+/* word * asm_type; */
 
 
 const word obj_sz = sizeof(Object)/sizeof(word);
@@ -77,6 +79,16 @@ word * array_append(word * heap, word * arr, word * item){
   }
   handle->used_sz += item_sz;
 
+  return arr;
+}
+
+
+word * array_append_str(word * heap, word * arr, uint8_t * str){
+  for (word i = 0; str[i]; ++i){
+    word x = str[i];
+    arr = array_append(heap, arr, &x);
+    if (!arr){return (word*)0;}
+  }
   return arr;
 }
 
@@ -677,6 +689,10 @@ void init_types(void){
   function_type = object(global_heap_start, string_type, 3, fun_str, 3);
   word cel_str[3] = {'c', 'e', 'l'};
   cell_type = object(global_heap_start, string_type, 3, cel_str, 3);
+  /* word native_str[3] = {'n', 't', 'v'}; */
+  /* native_type = object(global_heap_start, string_type, 3, native_str, 3); */
+  /* word asm_str[3] = {'a', 's', 'm'}; */
+  /* asm_type = object(global_heap_start, string_type, 3, asm_str, 3); */
 }
 
 
@@ -721,6 +737,15 @@ word set_keycmp(word * pair1, word * pair2){
 }
 
 
+word set_keyfind_cmp(word * kvp, word * key){
+  Object * pair = (Object*)(((AVL_Node*)kvp)->data);
+  word * k1 = (word*)pair->contents[0];
+  word * k2 = (word*)(((AVL_Node*)key)->data);
+  word val = obj_cmp(k1, k2);
+  return val;
+}
+
+
 word * set(word * heap){
   word contents = 0;
   return object(heap, set_type, 1, &contents, 1);
@@ -738,6 +763,15 @@ word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*)){
 word set_add_str_key(word * heap, word * s, word * key, word * val){
   word * data = pair(heap, key, val);
   return set_add(heap, s, data, &set_keycmp);
+}
+
+
+word * set_get_value(word * set, word * obj){
+  word ** tr = (word**)&(((Object*)set)->contents);
+  AVL_Node * node = (AVL_Node*)avl_find(tr, (word)obj, &set_keyfind_cmp);
+  Object * pair = (Object*)(node->data);
+  word * val = (word*)(pair->contents[1]);
+  return val;
 }
 
 

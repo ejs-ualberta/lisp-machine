@@ -20,8 +20,6 @@ extern uint32_t * fb_start;
 extern UINTN b_hres;    
 extern UINTN b_vres;
 
-extern word * machine_info;
-
 
 // debug.c
 int uintn_to_str(wchar_t * buf, word buf_sz, word num, word base);
@@ -44,7 +42,7 @@ word get_mem_sz(word * addr);
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
 word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable);
-void run(word * bytecode, word * machine);
+word run(word * bytecode, word * machine);
 
 
 //datastructures.c
@@ -54,6 +52,8 @@ extern word * array_type;
 extern word * set_type;
 extern word * function_type;
 extern word * cell_type;
+/* extern word * native_type; */
+/* extern word * asm_type; */
 
 typedef struct object{
   word max_sz; //(in umds, includes size of obj, must be here)
@@ -91,6 +91,7 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
 word * array(word * heap, word size, word item_sz);
 word * array_find(word * arr, word * start, word * item, word (*eq_fn)(word *, word *, word *), word * extra_params);
 word * array_append(word * heap, word * arr, word * item);
+word * array_append_str(word * heap, word * arr, uint8_t * str);
 void array_delete(word * heap, word * arr);
 word array_capacity(word * arr);
 word array_len(word * arr);
@@ -112,6 +113,7 @@ word set_keycmp(word * pair1, word * pair2);
 word * set(word * heap);
 word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*));
 word set_add_str_key(word * heap, word * s, word * key, word * val);
+word * set_get_value(word * set, word * obj);
 word * queue(word * heap);
 word * queue_push(word * heap, word * queue, word data);
 word queue_pop(word * heap, word * queue);
