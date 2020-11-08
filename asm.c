@@ -463,7 +463,6 @@ word run(word * bytecode, word * machine){
       break;
     }
 
-    print_uint(regs[pc], 16, 0);nl(1);
     ++(regs[pc]);
   }
   return regs[rr];
