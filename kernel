@@ -2,48 +2,7 @@ SETUP:
 	ads r1A r1E 0
 	ads r18 r1A STACK:
 	ads r19 r18 0
-	jnc r1F r1A MAIN:
 
-
-AVL_MIN_GE:
-
-
-AVL_MOVE:
-
-
-ALLOC:
-	str r19 r18 3
-	str r1B r18 4
-	str r0 r18 5
-	str r1 r18 6
-	str r2 r18 7
-	ads r19 r18 0
-	ads r18 r18 7	
-	ldr r0 r19 1
-	ldr r1 r19 2
-
-	ads r1 r1 1
-
-	dvu r2 r1 4
-	jnc r2 r1A alloc_sz_ok:
-	xor r1 r1 r1
-	ads r1 r1 4
-
-alloc_sz_ok:
-	ads r0 r0 3
-	ldr r2 r0 0
-
-	ads r18 r18 1
-	str r2 r18 1
-	str r1 r18 2
-	ads r1A r1E 2
-	jnc r1F r1A AVL_MIN_GE:
-	ldr r2 r18 0
-	sbs r18 r18 1
-	
-
-MAIN:
-	exc r0 r1C 1
 	xor r1F r1F r1F
 
 

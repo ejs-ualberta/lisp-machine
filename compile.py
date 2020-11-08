@@ -97,8 +97,6 @@ def builtin_op(op, ast, idx, env):
     buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
     return buf
 
-code = "[let [[x 1]] [if x [+ x 1] [/ 10 2]]]"
-c1 = "[/ 8 2]"
-tc = tokenize(code)
+c1 = "[let [[x 0]] [if x [+ x 1] [/ 10 2]]]"
 asm = compile_expr(tokenize(c1)[0], 0, {})
 print(asm)

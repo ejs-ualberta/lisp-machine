@@ -16,7 +16,7 @@ clang $CFLAGS -c -o asm.o asm.c
 clang $CFLAGS -c -o alloc.o alloc.c
 clang $CFLAGS -c -o kernel.o kernel.c
 clang $CFLAGS -c -o data.o gnu-efi*/lib/data.c
-#clang $CFLAGS -c -o ints.o interrupts.s
+clang $CFLAGS -c -o ints.o interrupts.s
 clang $LDFLAGS -o BOOTX64.EFI ./*.o
 rm ./*.o
 

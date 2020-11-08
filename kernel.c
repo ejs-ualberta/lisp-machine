@@ -4,6 +4,8 @@
 
 #include "config.h"
 
+extern int int_routine(void);
+
 
 //TODO: When creating the str instruction, make an argument for number of bits to store, or create some other method of storing only bytes.
 //Maybe read from addr, put byte in appropriate place, then atomic cmpxchng back.
@@ -20,113 +22,43 @@ UINTN b_hres = 0;
 UINTN b_vres = 0;
 
 
-/* typedef __attribute__ ((__packed__)) struct DT_Ptr{ */
-/*   uint16_t size; */
-/*   uint64_t offset; */
-/* }dt_ptr; */
+typedef __attribute__ ((__packed__)) struct IDT_Entry {
+  uint16_t offset_1;
+  uint16_t selector;
+  uint8_t ist;
+  uint8_t type_attr;
+  uint16_t offset_2;
+  uint32_t offset_3;
+  uint32_t zero;
+}idt_entry;
 
 
-/* typedef __attribute__ ((__packed__)) struct GDT_Entry { */
-/*   uint16_t limit_low; */
-/*   uint16_t base_low; */
-/*   uint8_t base_middle; */
-/*   uint8_t access; */
-/*   uint8_t granularity; */
-/*   uint8_t base_high; */
-/* }gdt_entry; */
+void interrupt_handler(void){
+  for (int i = 0; i < 1000; ++i){fb_start[i] = 0x00FFFFFF;}
+  outb(0x20, 0x20);
+  outb(0xA0, 0x20); // If isr >= 8
+}
 
 
-/* typedef __attribute__ ((__packed__)) struct IDT_Entry { */
-/*   uint16_t offset_1; */
-/*   uint16_t selector; */
-/*   uint8_t ist; */
-/*   uint8_t type_attr; */
-/*   uint16_t offset_2; */
-/*   uint32_t offset_3; */
-/*   uint32_t zero; */
-/* }idt_entry; */
+void patch_idt_entry(idt_entry * IDT, word idx, word handler_addr){
+  IDT[idx].offset_1 = handler_addr & 0xffff;
+  //IDT[idx].selector = 0x08;
+  //IDT[idx].ist = 0;
+  //IDT[idx].type_attr = 0x8E;
+  IDT[idx].offset_2 = (handler_addr >> 16) & 0xffff;
+  IDT[idx].offset_3 = (handler_addr >> 32);
+  //IDT[idx].zero = 0;
+}
 
-/* word GDT[2] = {0, 0x0020980000000000}; */
-/* idt_entry IDT[256]; */
+
+void sidt(word * loc){
+  asm volatile("sidt %0"::"m"(*loc):"memory");
+}
 
 
 void shutdown(void){
   ST->RuntimeServices->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, NULL);
 }
-
-
-/* void gdt_init(){ */
-/*   asm volatile("cli"); */
-/*   // NOTE: This is weird... */
-/*   dt_ptr gdt_ptr = {sizeof(GDT)-1, (word)GDT}; */
-
-/*   //fb_print_uint(fb_start, ((word)1 << 43) | ((word)1 << 44) | ((word)1 << 47) | ((word)1 << 53), 16); */
-/*   /\* word old_ptr; *\/ */
-/*   /\* asm volatile ("sgdt %[idtptr]" : [idtptr]"=m"(old_ptr)); *\/ */
-/*   /\* fb_print_uint(fb_start, old_ptr, 0); *\/ */
-/*   asm volatile ("\ */
-/*     lgdt (%0)\n\ */
-/*     mov $0x10, %%ax\n" */
-/*     ::"r"(&gdt_ptr) */
-/*     :"memory", "ax"); */
-/*   //fb_print_uint(fb_start, gdt_ptr.size, 0); */
-/*   //word new_ptr; */
-/*   //asm volatile ("sgdt %[idtptr]\n" : [idtptr]"=m"(new_ptr)); */
-/*   //fb_print_uint(fb_start, new_ptr, 0); */
-/* }; */
-
-
-/* void interrupt_handler(void){ */
-/*   for (int i = 0; i < 100; ++i){fb_start[i] = 255;} */
-/*   outb(0x20, 0x20); */
-/* } */
-
-
-/* void set_idt_entry(word idx, word handler_addr){ */
-/*   IDT[idx].offset_1 = handler_addr & 0xffff; */
-/*   IDT[idx].selector = 0x08; */
-/*   IDT[idx].ist = 0; */
-/*   IDT[idx].type_attr = 0x8E; */
-/*   IDT[idx].offset_2 = (handler_addr >> 16) & 0xffff; */
-/*   IDT[idx].offset_3 = (handler_addr >> 32); */
-/*   IDT[idx].zero = 0; */
-/* } */
-
-
-/* void interrupts_init(void){ */
-/*   extern int int_routine(void); */
-/*   //Magically remap the PIC */
-/*   outb(0x20, 0x11); */
-/*   outb(0xA0, 0x11); */
-/*   outb(0x21, 0x20); */
-/*   outb(0xA1, 0x28); // was 0x70 */
-/*   outb(0x21, 0x04); */
-/*   outb(0xA1, 0x02); */
-/*   outb(0x21, 0x01); */
-/*   outb(0xA1, 0x01); */
-/*   outb(0x21, 0x0); */
-/*   outb(0xA1, 0x0); */
-
-/*   for (word i = 32; i < 256; ++i){ */
-/*     set_idt_entry(i, (word)int_routine); */
-/*   } */
-
-  
-/*   word idt_ptr = ((word)IDT << 16); */
-/*   word limit = sizeof(idt_entry) * 256 - 1; */
-/*   idt_ptr |= limit; */
-/*   /\* word old_ptr; *\/ */
-/*   /\* asm volatile ("sidt %[idtptr]" : [idtptr]"=m"(old_ptr)); *\/ */
-/*   asm volatile ("lidt (%0)\n" // TODO: add sti instr. */
-/*        ::"r"(&idt_ptr) */
-/*        :"memory"); */
-/*   //for (int i = 0; i < 100; ++i){fb_start[100+i] = 0xFFFF;} */
-/*   /\* word new_ptr; *\/ */
-/*   /\* asm volatile ("sidt %[idtptr]" : [idtptr]"=m"(new_ptr)); *\/ */
-/*   /\* print_uint(new_ptr, 16, 8);nl(1); *\/ */
-/*   /\* for (word i = 0; i < 1000000000; ++i){} *\/ */
-/*   asm("int $0x80"); */
-/* } */
 
 
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
@@ -356,6 +288,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /*   Status = mouse.GetState(&mouse, &m_state); */
   /*   *(fb_start + m_state.RelativeMovementY * b_hres + m_state.RelativeMovementX) = 0x00FFFFFF; */
   /* } */
+
+
+  word idt = 0;
+  sidt(&idt);
+  idt >>= 16;
+  patch_idt_entry((idt_entry*)idt, 0x80, (word)int_routine);
 
   
   init_types();
