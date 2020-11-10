@@ -42,23 +42,43 @@ def compile_int(val):
     return 'xor r1d r1d r1d\n' + "ads r1d r1d " + to_hex(val) + '\n'
 
 
+def compile_gt(ast, idx, env):
+    buf = ""
+    if len(ast) != 3:
+        return buf
+    buf += "str r0 r19 " + to_hex(idx + 1) + '\n'
+    buf += compile_expr(ast[1], idx + 1, env.copy())
+    buf += "str r1d r19 " + to_hex(idx + 2) + '\n'
+    buf += compile_expr(ast[2], idx + 2, env.copy())
+    buf += "ldr r0 r19 " + to_hex(idx + 2) + '\n'
+    buf += "sbs r1d r0 r1d\n"
+    buf += "nor r1d r1d r1d\n"
+    buf += "shf r1d r1d 3f\n"
+    buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
+    return buf
+
+
 def compile_function(ast, idx, env):
     #Caller needs to save and restore link registers
     env = dict()
     n = len(ast[1])
     for i in range(n):
         env[ast[1][i]] = i - n - 1
+    labels[ast[0]] = ""
     buf = ast[0] + "\n"
     buf += "str r19 r18 1\n" + "ads r18 r18 1\n" + "ads r19 r18 0\n"
     buf += compile_expr(ast[2], 0, env)
     buf +=  "sbs r18 r18 1\n" + "ldr r19 r18 1\n" + "jnc r1F r1B 0\n"
     labels[ast[0]] = buf
-    return ""
+    return "ads r1d r1a " + ast[0] + "\n"
 
 def compile_call(ast, idx, env):
     prims = {'+':"ads", '-':"sbs", '&':"and", '|':"orr", '^':"xor", '~':"nor", '><':"shf", '*':'mls', '/':"dvs"}
+    sp_prims = {">":compile_gt}
     if ast[0] in prims:
         return builtin_op(prims[ast[0]], ast, idx, env.copy())
+    elif ast[0] in sp_prims:
+        return sp_prims[ast[0]](ast, idx, env.copy())
     elif ast[0] == "let":
         ret = ""
         for pair in ast[1]:
@@ -141,7 +161,8 @@ def comp(string):
     return prologue
         
         
-
-c1 = "[: fn [x y] [+ x y]] [: fn1 [x y] [+ [fn x y] 1]] [fn1 2 1]"
+#c1 = "[let [[y [: fn [x] x]] [z [fn y]]] z]"
+#c1 = "[: fn [x y] [+ x y]] [: fn1 [x y] [+ [fn x y] 1]] [: fn2 [x] x] [fn2 [fn 1 2]]"
+c1 = "[: fact [x] [if [> x 1] [* x [fact [- x 1]]] 1]] [fact 5]"
 code = comp(c1)
 print(code)
