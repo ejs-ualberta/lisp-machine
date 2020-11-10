@@ -1,3 +1,5 @@
+labels = dict()
+
 def tok(in_str, i):
     ws = {'\t', '\n', ' '}
     prims = {'[', ']'}
@@ -41,11 +43,17 @@ def compile_int(val):
 
 
 def compile_function(ast, idx, env):
-    #Caller needs to save and restore link register.
-    buf = "str r19 r18 1\n" + "ads r18 r18 1\n"
-    buf += compile_expr(ast, 0, {})
+    #Caller needs to save and restore link registers
+    env = dict()
+    n = len(ast[1])
+    for i in range(n):
+        env[ast[1][i]] = i - n - 1
+    buf = ast[0] + "\n"
+    buf += "str r19 r18 1\n" + "ads r18 r18 1\n" + "ads r19 r18 0\n"
+    buf += compile_expr(ast[2], 0, env)
     buf +=  "sbs r18 r18 1\n" + "ldr r19 r18 1\n" + "jnc r1F r1B 0\n"
-    return buf
+    labels[ast[0]] = buf
+    return ""
 
 def compile_call(ast, idx, env):
     prims = {'+':"ads", '-':"sbs", '&':"and", '|':"orr", '^':"xor", '~':"nor", '><':"shf", '*':'mls', '/':"dvs"}
@@ -68,8 +76,27 @@ def compile_call(ast, idx, env):
         ret += "jnc r1f r1e " + to_hex(1 + exp3.count('\n')) + '\n'
         ret += exp3
         return ret
+    elif ast[0] == ":":
+        ret = compile_function(ast[1:], idx, env.copy())
+        return ret
+    elif ast[0] in labels: #TODO: Test this once functions can be defined.
+        idx += 1
+        ret = ""
+        for arg in ast[1:]:
+            ret += compile_expr(arg, idx, env.copy())
+            ret += "str r1d r19 " + to_hex(idx) + "\n"
+            idx += 1
+        offset = to_hex(idx)
+        ret += "ads r18 r18 " + offset + "\n" # set stack ptr
+        ret += "str r1b r18 0\n" # save link register on stack
+        ret += "ads r1b r1e 2\n" # put pc + 2 in the link register
+        ret += "jnc r1F r1a " + ast[0] + "\n"
+        ret += "ldr r1b r18 0 \n" # restore link register
+        ret += "sbs r18 r18 " + offset + "\n" # restore stack pointer
+        return ret
     else:
         pass
+
 
 def compile_expr(ast, idx, env):
     if type(ast) is int:
@@ -97,6 +124,24 @@ def builtin_op(op, ast, idx, env):
     buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
     return buf
 
-c1 = "[let [[x 0]] [if x [+ x 1] [/ 10 2]]]"
-asm = compile_expr(tokenize(c1)[0], 0, {})
-print(asm)
+
+def comp(string):
+    toks = tokenize(string)
+    prologue = "ads r1A r1E 0\n" + "ads r18 r1A STACK:\n" + "ads r19 r18 0\n" + "ads r1b r1E 2\n" + "jnc r1f r1a MAIN:\n" + "xor r1F r1F r1F\n"
+    asm = "MAIN:\n"
+    for expr in toks:
+        asm += compile_expr(expr, 0, {})
+
+    asm += "jnc r1f r1b 0\n\n"
+
+    for key in labels.keys():
+        prologue += "\n" + labels[key] + "\n"
+    prologue += asm + "STACK: 0"
+
+    return prologue
+        
+        
+
+c1 = "[: fn [x y] [+ x y]] [: fn1 [x y] [+ [fn x y] 1]] [fn1 2 1]"
+code = comp(c1)
+print(code)

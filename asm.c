@@ -397,7 +397,7 @@ word run(word * bytecode, word * machine){
     word x, y;
     switch (opcode){
     case acx:
-      regs[args[1]] = atomic_cas((word*)regs[args[0]], regs[args[1]], regs[args[2]]);
+      regs[args[1]] = atomic_cas((word*)(regs[args[0]]*sizeof(word)), regs[args[1]], regs[args[2]]);
       break;
     case ads:
       regs[args[0]] = regs[args[1]] + regs[args[2]];
@@ -445,10 +445,10 @@ word run(word * bytecode, word * machine){
       }
       break;
     case ldr:
-      regs[args[0]] = *(word*)(regs[args[1]] + sizeof(word)*regs[args[2]]);
+      regs[args[0]] = *(word*)(sizeof(word)*regs[args[1]] + sizeof(word)*regs[args[2]]);
       break;
     case str:
-      *(word*)(regs[args[1]] + sizeof(word)*regs[args[2]]) = regs[args[0]];
+      *(word*)(sizeof(word)*regs[args[1]] + sizeof(word)*regs[args[2]]) = regs[args[0]];
       break;
     case jnc:
       if (regs[args[0]]){

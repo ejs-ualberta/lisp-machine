@@ -1,9 +1,64 @@
-SETUP:
-	ads r1A r1E 0
-	ads r18 r1A STACK:
-	ads r19 r18 0
+ads r1A r1E 0
+ads r18 r1A STACK:
+ads r19 r18 0
+ads r1b r1E 2
+jnc r1f r1a MAIN:
+xor r1F r1F r1F
 
-	xor r1F r1F r1F
+fn1
+str r19 r18 1
+ads r18 r18 1
+ads r19 r18 0
+str r0 r19 1
+ldr r1d r19 -3
+str r1d r19 2
+ldr r1d r19 -2
+str r1d r19 3
+ads r18 r18 4
+str r1b r18 0
+ads r1b r1e 2
+jnc r1F r1a fn
+ldr r1b r18 0 
+sbs r18 r18 4
+str r1d r19 2
+xor r1d r1d r1d
+ads r1d r1d 1
+ldr r0 r19 2
+ads r1d r0 r1d
+ldr r0 r19 1
+sbs r18 r18 1
+ldr r19 r18 1
+jnc r1F r1B 0
 
+
+fn
+str r19 r18 1
+ads r18 r18 1
+ads r19 r18 0
+str r0 r19 1
+ldr r1d r19 -3
+str r1d r19 2
+ldr r1d r19 -2
+ldr r0 r19 2
+ads r1d r0 r1d
+ldr r0 r19 1
+sbs r18 r18 1
+ldr r19 r18 1
+jnc r1F r1B 0
+
+MAIN:
+xor r1d r1d r1d
+ads r1d r1d 2
+str r1d r19 1
+xor r1d r1d r1d
+ads r1d r1d 1
+str r1d r19 2
+ads r18 r18 3
+str r1b r18 0
+ads r1b r1e 2
+jnc r1F r1a fn1
+ldr r1b r18 0 
+sbs r18 r18 3
+jnc r1f r1b 0
 
 STACK: 0

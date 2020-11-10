@@ -22,6 +22,13 @@ UINTN b_hres = 0;
 UINTN b_vres = 0;
 
 
+typedef __attribute__((__packed__)) struct DT_PTR {
+  word limit : 16;
+  word lower : 48;
+  uint16_t upper;
+} dt_ptr;
+
+
 typedef __attribute__ ((__packed__)) struct IDT_Entry {
   uint16_t offset_1;
   uint16_t selector;
@@ -261,6 +268,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     }
   }
 
+
+  /* EFI_GUID dbg_guid = {0x2755590C,0x6F3C,0x42FA, {0x9E,0xA4,0xA3,0xBA,0x54,0x3C,0xDA,0x25}}; */
+  /* EFI_DEBUG_SUPPORT_PROTOCOL debug; */
+  /* Status = ST->BootServices->LocateProtocol(&dbg_guid, NULL, (void**)&debug); */
+
+
   /* Status = ST->BootServices->ExitBootServices(ImageHandle, map_key); */
   /* if (EFI_ERROR(Status)){ */
   /*   ST->ConOut->OutputString(ST->ConOut, L"Could not exit boot services.\r\n"); */
@@ -290,10 +303,15 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /* } */
 
 
-  word idt = 0;
-  sidt(&idt);
-  idt >>= 16;
-  patch_idt_entry((idt_entry*)idt, 0x80, (word)int_routine);
+  /* dt_ptr old_idt; */
+  /* sidt((word*)&old_idt); */
+  /* idt_entry * idt = (idt_entry*)old_idt.lower; */
+  /* for (word i = 0; i < old_idt.limit; ++i){ */
+  /*   patch_idt_entry(idt, i, (word)int_routine); */
+  /* } */
+  //asm("int $0x0");
+  //fb_print_uint(fb_start + 100, (*(word*)(idt + 0x80)), 0);
+  //fb_print_uint(fb_start + 550, (*(word*)(idt)), 0);
 
   
   init_types();
