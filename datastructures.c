@@ -36,6 +36,127 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
 }
 
 
+word * object_append_word(word * heap, word * obj, word data){
+  Object * o = (Object*)obj;
+  word max_sz = o->max_sz - obj_sz;
+  if (o->size >= max_sz){
+    o = (Object*)(realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
+    if (!o){return 0;}
+  }
+  o->contents[o->size++] = (word)data;
+  return (word*)o;
+}
+
+
+word * object_append(word * heap, word * obj, word * data){
+  Object * o = (Object*)obj;
+  Object * d = (Object*)data;
+  ++d->refcount;
+  word max_sz = o->max_sz - obj_sz;
+  if (o->size >= max_sz){
+    o = (Object*)(realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
+    if (!o){return 0;}
+  }
+  o->contents[o->size++] = (word)data;
+  return (word*)o;
+}
+
+
+void obj_print(word * obj){
+  Object * o = (Object*)obj;
+  Object * type = (Object*)o->type;
+  print_cstr("maxs: ");print_uint(o->max_sz, 16, 0);nl(1);
+  print_cstr("refc: ");print_uint(o->refcount, 16, 0);nl(1);
+  print_cstr("size: ");print_uint(o->size, 16, 0);nl(1);
+  print_cstr("type: ");
+  for (word i = 0; i < type->size * sizeof(word); ++i){
+    print_cstr((char*)(type->contents) + i);
+  }
+  nl(1);print_cstr("cnts: ");
+  for (word i = 0; i < o->size; ++i){
+    print_uint(o->contents[i], 16, 0);spc(1);
+  }
+  nl(1);
+}
+
+
+void rec_obj_print(word * obj){
+  Object * o = (Object*)obj;
+  if (!obj_cmp((word*)o->type, string_type)){
+    for (word i = 0; i < o->size*sizeof(word); ++i){
+      print_cstr((char*)(o->contents) + i);
+    }spc(1);
+  }else if (!obj_cmp((word*)o->type, array_type)){
+    Object * o1 = (Object*)o->contents[0];
+    print_cstr("[");spc(1);
+    for (word i = 0; i < o1->size; ++i){
+      rec_obj_print((word*)o1->contents[i]);
+    }
+    print_cstr("]");spc(1);
+  }else if (!obj_cmp((word*)o->type, num_type)){
+    print_num((word*)obj);spc(1);
+  }
+}
+
+
+void _object_delete(word * heap, word * obj){
+  free(heap, obj + 1);
+}
+
+void object_delete(word * heap, word * obj){
+  Object * o = (Object*)obj;
+  if (!o){
+    return;
+  }
+  if (--(o->refcount)){
+    return;
+  }
+
+  word * type = (word*)o->type;
+  if (type == num_type || type == string_type){
+    _object_delete(heap, obj);
+  }else if(type == set_type){
+    set_delete(heap, obj);
+  }else if(type == cell_type || type == function_type){
+    for (word i = 0; i < o->size; ++i){
+      object_delete(heap, (word*)(o->contents[i]));
+    }
+    _object_delete(heap, obj);
+  }else if (type == array_type){
+    obj_array_delete(heap, obj);
+  }
+  object_delete(heap, type);
+}
+
+
+word * obj_array(word * heap, word size){
+  word * arr = object(heap, (word*)0, size, (word*)0, 0);
+  ++((Object*)arr)->refcount;
+  word * ret = object(heap, array_type, 1, (word*)&arr, 1);
+  return ret;
+}
+
+
+void obj_array_append(word * heap, word * arr, word * data){
+  Object * A = (Object*)arr;
+  A->contents[0] = (word)object_append(heap, (word*)(A->contents[0]), data);
+}
+
+
+void obj_array_delete(word * heap, word * obj) {
+  Object * o = (Object*)obj;
+  if (--o->refcount){
+    return;
+  }
+  Object * arr = (Object*)(o->contents[0]);
+  for (word i = 0; i < arr->size; ++i){
+    object_delete(heap, (word*)(arr->contents[i]));
+  }
+  _object_delete(heap, (word*)arr);
+  _object_delete(heap, obj);
+}
+
+
 const word Array_bsz = sizeof(Array)/sizeof(word) - 1;
 
 word * array(word * heap, word size, word item_sz){
@@ -595,6 +716,7 @@ word * _avl_delete(word ** tr, word * node, word (*cmp)(word*, word*)){
 
 word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
   word * node = avl_find(tr, data, cmp);
+  if (!node){return 1;}
   word * x = _avl_delete(tr, node, cmp);
   if (x){
     free(heap, x);
@@ -727,6 +849,14 @@ word obj_cmp(word * obj1, word * obj2){
 }
 
 
+word set_cmp(word * node1, word * node2){
+  Object * p1 = (Object*)(((AVL_Node*)node1)->data);
+  Object * p2 = (Object*)(((AVL_Node*)node2)->data);
+  word val = obj_cmp((word*)p1, (word*)p2);
+  return val;
+}
+
+
 word set_keycmp(word * pair1, word * pair2){
   Object * p1 = (Object*)(((AVL_Node*)pair1)->data);
   Object * p2 = (Object*)(((AVL_Node*)pair2)->data);
@@ -766,12 +896,33 @@ word set_add_str_key(word * heap, word * s, word * key, word * val){
 }
 
 
+word * in_set(word * set, word * obj){
+  word ** tr = (word**)&(((Object*)set)->contents);
+  AVL_Node * node = (AVL_Node*)avl_find(tr, (word)obj, &set_cmp);
+  if (!node){return 0;}
+  Object * item = (Object*)(node->data);
+  return (word*)item;
+}
+
+
 word * set_get_value(word * set, word * obj){
   word ** tr = (word**)&(((Object*)set)->contents);
   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)obj, &set_keyfind_cmp);
+  if (!node){return 0;}
   Object * pair = (Object*)(node->data);
   word * val = (word*)(pair->contents[1]);
   return val;
+}
+
+
+void set_delete(word * heap, word * set){
+  word ** tr = (word**)&(((Object*)set)->contents);
+  while (*tr){
+    AVL_Node * root = (AVL_Node*)*tr;
+    object_delete(heap, (word*)(root->data));
+    avl_delete(heap, tr, root->data, avl_basic_cmp);
+  }
+  _object_delete(heap, set);
 }
 
 
@@ -808,4 +959,107 @@ word queue_pop(word * heap, word * queue){
   word data = last->data;
   free(heap, (word*)last);
   return data;
+}
+
+
+/* word b16_to_word(word * num, word length){ */
+/*   word neg = 0; */
+/*   if (length){ */
+/*     if (num[0] == '-'){ */
+/*       neg = 1; */
+/*       ++num; */
+/*       --length; */
+/*     } */
+/*     if (!length || length > sizeof(word)*2){return 0;} */
+/*   }else{ */
+/*     return 0; */
+/*   } */
+
+/*   word final_num = 0; */
+/*   word offset = '0'; */
+/*   for (word index = 0; index < length; ++index){  */
+/*     word chr = num[index]; */
+/*     if ('f' >= chr && chr >= 'a') {offset = 'a'-10;} */
+/*     else if ('F' >= chr && chr >= 'A'){offset = 'A'-10;} */
+/*     else if('9' >= chr && chr >= '0') {offset = '0';} */
+/*     else {return 0;} */
+/*     final_num |= ((chr - offset) << (4*(length-index-1))); */
+/*   } */
+
+/*   if (neg){ */
+/*     final_num  = ~final_num + 1; */
+/*   } */
+
+/*   return final_num; */
+/* } */
+
+
+word adc(word x, word y, word * result){
+  *result = x + y;
+  word mask = (word)-1 >> 1;
+  word z = (x & mask) + (y & mask);
+  z >>= sizeof(word)*8 - 1;
+  x >>= sizeof(word)*8 - 1;
+  y >>= sizeof(word)*8 - 1;
+  return (x & y) | (x & z) | (y & z);
+}
+
+
+void num_negate(word *num){
+  Object * n = (Object*)num;
+  word carry = 1;
+  for (word i = 0; i < n->size; ++i){
+    carry = adc(~(n->contents[i]), carry, n->contents + i);
+  }
+}
+
+
+word * str_to_num(word * heap, word * num){
+  word neg = 0;
+  word length = ((Object*)num)->size;
+  word * arr = ((Object*)num)->contents;
+
+  if (length){
+    if (arr[0] == '-'){
+      neg = 1;
+      ++arr;
+      --length;
+    }
+    if (!length){return 0;}
+  }else{
+    return 0;
+  }
+
+  word size = (length / (sizeof(word) * 2)) + (length % (sizeof(word)*2) ? 1 : 0);
+  Object * final_num = (Object*)object(heap, num_type, size, 0, 0);
+  word offset = '0';
+  word current = 0;
+  for (word i = 0; i < size; ++i){
+    word j;
+    for (word index = 0; index < (sizeof(word) * 2) && (j = (size - i - 1) * sizeof(word)*2 + index) < length; ++index){
+      word chr = arr[j];
+      if ('f' >= chr && chr >= 'a') {offset = 'a'-10;}
+      else if ('F' >= chr && chr >= 'A'){offset = 'A'-10;}
+      else if ('9' >= chr && chr >= '0'){offset = '0';}
+      else {_object_delete(heap, (word*)final_num); return 0;}
+      current <<= 4;
+      current |= (chr - offset);
+    }
+    final_num = (Object*)object_append_word(heap, (word*)final_num, current);
+    current = 0;
+  }
+
+  if (neg){
+    num_negate((word*)final_num);
+  }
+
+  return (word*)final_num;
+}
+
+
+void print_num(word * num){
+  Object * n = (Object*)num;
+  for (word i = n->size; i > 0; --i){
+    print_uint(n->contents[i-1], 16, 0);
+  }
 }

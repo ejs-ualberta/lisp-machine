@@ -22,6 +22,39 @@ UINTN b_hres = 0;
 UINTN b_vres = 0;
 
 
+typedef struct SDT_Header {
+  uint8_t signature[4];
+  uint32_t length;
+  uint8_t revision;
+  uint8_t checksum;
+  uint8_t oemid[6];
+  uint8_t oem_table_id[8];
+  uint32_t oem_revision;
+  uint32_t creator_id;
+  uint32_t creator_revision;
+} sdt_header;
+
+
+struct XSDT {
+  sdt_header header;
+  word sdt_ptr[];
+};
+
+
+sdt_header * find_sdt(word * xsdt_ptr, uint8_t * sig){
+  struct XSDT * xsdt = (struct XSDT*)xsdt_ptr;
+  word n_entries = (xsdt->header.length - sizeof(xsdt->header)) / 8;
+ 
+  for (word i = 0; i < n_entries; ++i){
+    sdt_header * hdr = (sdt_header*)(xsdt->sdt_ptr[i]);
+    if (!strncmp(hdr->signature, sig, 4)){
+      return hdr;
+    }
+  }
+  return (sdt_header*)0;
+}
+
+
 typedef __attribute__((__packed__)) struct DT_PTR {
   word limit : 16;
   word lower : 48;
@@ -41,7 +74,8 @@ typedef __attribute__ ((__packed__)) struct IDT_Entry {
 
 
 void interrupt_handler(void){
-  for (int i = 0; i < 1000; ++i){fb_start[i] = 0x00FFFFFF;}
+  for (int i = 0; i < 1024; ++i){fb_start[i] = 0x00FFFFFF;}
+  //*(uint32_t*)(0xFEE00000 + 0xB0) = 0;
   outb(0x20, 0x20);
   outb(0xA0, 0x20); // If isr >= 8
 }
@@ -78,7 +112,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   ST->BootServices->SetWatchdogTimer(0, 0, 0, NULL);
 
   word * rsdp = 0;
-  //TODO: better way to do this?
   EFI_GUID acpi_20_guid = {0x8868e871,0xe4f1,0x11d3, {0xbc,0x22,0x00,0x80,0xc7,0x3c,0x88,0x81}};
   EFI_CONFIGURATION_TABLE * conf_tbl = ST->ConfigurationTable;
   for (word i = 0; i < ST->NumberOfTableEntries; ++i){
@@ -114,7 +147,11 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
     ST->ConOut->OutputString(ST->ConOut, L"Checksum for xsdt is invalid.");
     return Status;
   }
-  
+
+
+  //Doesn't work
+  uint8_t madt_sig[4] = {'M','A','D','T'};
+  //sdt_header * madt = find_sdt(xsdt, madt_sig);
   
   /* Note: this whole section needs updating if/when booting on real hardware someday. */
   /* Get a handle to the GOP */
@@ -303,18 +340,25 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /* } */
 
 
-  /* dt_ptr old_idt; */
-  /* sidt((word*)&old_idt); */
-  /* idt_entry * idt = (idt_entry*)old_idt.lower; */
-  /* for (word i = 0; i < old_idt.limit; ++i){ */
-  /*   patch_idt_entry(idt, i, (word)int_routine); */
-  /* } */
-  //asm("int $0x0");
+  dt_ptr old_idt;
+  sidt((word*)&old_idt);
+  idt_entry * idt = (idt_entry*)old_idt.lower;
+  for (word i = 0; i < old_idt.limit; ++i){
+    patch_idt_entry(idt, i, (word)int_routine);
+  }
+  //asm("int $0x80");
   //fb_print_uint(fb_start + 100, (*(word*)(idt + 0x80)), 0);
   //fb_print_uint(fb_start + 550, (*(word*)(idt)), 0);
 
-  
   init_types();
+
+  extern word * tokenize(word * heap, word * code, word code_sz);
+  Object * obj = (Object*)tokenize(global_heap_start, kernel_src, array_len(kernel_src));
+  print_uint(obj->contents[0], 16, 0);nl(1);
+  void rec_obj_print(word * obj);
+  rec_obj_print(obj);
+  while(1){};
+
   word * machine_info = init_machine(ImageHandle, SystemTable);
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
   array_delete(global_heap_start, kernel_src);
@@ -329,6 +373,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   fb_print_uint(fb_start, run(bytecode, machine_info), 0);
   array_delete(global_heap_start, bytecode);
+  //object_delete(global_heap_start, machine_info); Do not do this. Need a special function.
 
   while (1){
     //fb_print_uint(fb_start, 0xdeadbeef, 0);

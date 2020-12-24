@@ -22,6 +22,18 @@ word strlen(const word * str){
 }
 
 
+word strncmp(uint8_t * s1, uint8_t * s2, word len){
+  for (word i = 0; i < len; ++i){
+    if (s1[i] > s2[i]){
+      return (word)-1;
+    }else if (s1[i] > s2[i]){
+      return (word)1;
+    }
+  }
+  return 0;
+}
+
+
 // Keeps the compiler from dying
 void * memcpy(void * dest, const void * src, size_t n){
   word lim = n / sizeof(word);

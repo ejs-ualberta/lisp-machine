@@ -58,6 +58,34 @@ def compile_gt(ast, idx, env):
     return buf
 
 
+def compile_load(ast, idx, env):
+    buf = ""
+    if len(ast) != 3:
+        return buf
+    buf += "str r0 r19 " + to_hex(idx + 1) + '\n'
+    buf += compile_expr(ast[1], idx + 1, env.copy())
+    buf += "str r1d r19 " + to_hex(idx + 2) + '\n'
+    buf += compile_expr(ast[2], idx + 2, env.copy())
+    buf += "ldr r0 r19 " + to_hex(idx + 2) + '\n'
+    buf += "ldr r1d r0 r1d\n"
+    buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
+    return buf
+
+
+def compile_store(ast, idx, env):
+    buf = ""
+    if len(ast) != 3:
+        return buf
+    buf += "str r0 r19 " + to_hex(idx + 1) + '\n'
+    buf += compile_expr(ast[1], idx + 1, env.copy())
+    buf += "str r1d r19 " + to_hex(idx + 2) + '\n'
+    buf += compile_expr(ast[2], idx + 2, env.copy())
+    buf += "ldr r0 r19 " + to_hex(idx + 2) + '\n'
+    buf += "str r1d r0 0\n"
+    buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
+    return buf
+
+
 def compile_function(ast, idx, env):
     #Caller needs to save and restore link registers
     env = dict()
@@ -72,9 +100,10 @@ def compile_function(ast, idx, env):
     labels[ast[0]] = buf
     return "ads r1d r1a " + ast[0] + "\n"
 
+
 def compile_call(ast, idx, env):
     prims = {'+':"ads", '-':"sbs", '&':"and", '|':"orr", '^':"xor", '~':"nor", '><':"shf", '*':'mls', '/':"dvs"}
-    sp_prims = {">":compile_gt}
+    sp_prims = {">":compile_gt, ".":compile_store, ",":compile_load}
     if ast[0] in prims:
         return builtin_op(prims[ast[0]], ast, idx, env.copy())
     elif ast[0] in sp_prims:
@@ -99,7 +128,7 @@ def compile_call(ast, idx, env):
     elif ast[0] == ":":
         ret = compile_function(ast[1:], idx, env.copy())
         return ret
-    elif ast[0] in labels: #TODO: Test this once functions can be defined.
+    elif ast[0] in labels:
         idx += 1
         ret = ""
         for arg in ast[1:]:
@@ -163,6 +192,7 @@ def comp(string):
         
 #c1 = "[let [[y [: fn [x] x]] [z [fn y]]] z]"
 #c1 = "[: fn [x y] [+ x y]] [: fn1 [x y] [+ [fn x y] 1]] [: fn2 [x] x] [fn2 [fn 1 2]]"
-c1 = "[: fact [x] [if [> x 1] [* x [fact [- x 1]]] 1]] [fact 5]"
+c1 = "[: fact [x] [if [> x 1] [* x [fact [- x 1]]] 1]] [fact 10]"
+#c1 = "[. 10000 deadbeef] [, ffff 1]"
 code = comp(c1)
 print(code)

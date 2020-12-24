@@ -24,6 +24,7 @@ extern UINTN b_vres;
 // debug.c
 int uintn_to_str(wchar_t * buf, word buf_sz, word num, word base);
 void print_uint(word val, word base, word padding);
+void print_cstr(char * str);
 void spc(word n);
 void nl(word n);
 void fb_print_char(uint32_t * loc, word val, uint32_t bc, uint32_t fc);
@@ -88,6 +89,12 @@ typedef struct link{
 }Link;
 
 word * object(word * heap, word * type, word size, word * contents, word n_words);
+word * object_append_word(word * heap, word * obj, word data);
+word * object_append(word * heap, word * obj, word * data);
+void object_delete(word * heap, word * obj);
+word * obj_array(word * heap, word size);
+void obj_array_append(word * heap, word * arr, word * data);
+void obj_array_delete(word * heap, word * obj);
 word * array(word * heap, word size, word item_sz);
 word * array_find(word * arr, word * start, word * item, word (*eq_fn)(word *, word *, word *), word * extra_params);
 word * array_append(word * heap, word * arr, word * item);
@@ -113,16 +120,22 @@ word set_keycmp(word * pair1, word * pair2);
 word * set(word * heap);
 word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*));
 word set_add_str_key(word * heap, word * s, word * key, word * val);
+word * in_set(word * set, word * obj);
 word * set_get_value(word * set, word * obj);
+void set_delete(word * heap, word * set);
 word * queue(word * heap);
 word * queue_push(word * heap, word * queue, word data);
 word queue_pop(word * heap, word * queue);
+void num_negate(word *num);
+word * str_to_num(word * heap, word * num);
+void print_num(word * num);
 
 
 //util.c
 word max(sword x, sword y);
 word min(sword x, sword y);
 word strlen(const word * str);
+word strncmp(uint8_t * s1, uint8_t * s2, word len);
 void * memcpy(void * dest, const void * src, size_t n);
 void * memset(void * str, int c, size_t n);
 word memcmp(word * m1, word * m2, word len);

@@ -91,6 +91,14 @@ void print_uint(word val, word base, word padding){
 }
 
 
+void print_cstr(char * str){
+  for (word i = 0; str[i]; ++i){
+    uint16_t chr[2] = {str[i], 0};
+    ST->ConOut->OutputString(ST->ConOut, chr);
+  }
+}
+
+
 void spc(word n){
   for (word i = 0; i < n; ++i){
     ST->ConOut->OutputString(ST->ConOut, L" ");

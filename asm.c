@@ -493,7 +493,7 @@ word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   set_add_str_key(global_heap_start, types_set, function_type, function_type);
   set_add_str_key(global_heap_start, types_set, cell_type, cell_type);
   /* set_add_str_key(global_heap_start, types_set, native_type, native_type); */
-  /* set_add_str_key(global_heap_start, machine, types_str, types_set); */
+  set_add_str_key(global_heap_start, machine, types_str, types_set);
 
   word pc_key[2] = {'p', 'c'};
   word * pc_str = object(global_heap_start, string_type, 2, pc_key, 2);
