@@ -83,6 +83,9 @@ void obj_print(word * obj){
 void rec_obj_print(word * obj){
   Object * o = (Object*)obj;
   if (!obj_cmp((word*)o->type, string_type)){
+    if (!o->size){
+      print_cstr("''");
+    }
     for (word i = 0; i < o->size*sizeof(word); ++i){
       print_cstr((char*)(o->contents) + i);
     }spc(1);
@@ -1005,12 +1008,65 @@ word adc(word x, word y, word * result){
 }
 
 
-void num_negate(word *num){
+word * num_negate(word * num){
   Object * n = (Object*)num;
   word carry = 1;
   for (word i = 0; i < n->size; ++i){
     carry = adc(~(n->contents[i]), carry, n->contents + i);
   }
+  return (word*)n;
+}
+
+
+word * num_add(word * heap, word * num1, word * num2){
+  Object * n1 = (Object*)num1;
+  Object * n2 = (Object*)num2;
+
+  // Put the "shorter" number last. 
+  if (n1->size < n2->size){
+    Object * tmp = n1;
+    n1 = n2;
+    n2 = tmp;
+  }
+  word n1_sz = n1->size;
+  word n2_sz = n2->size;
+  word n1_sgn = n1->contents[n1_sz-1] >> (sizeof(word)*8 - 1);
+  word n2_sgn = n2->contents[n2_sz-1] >> (sizeof(word)*8 - 1);
+
+  // Create an obj of size n1_sz because n1 is now the "longest" number.
+  Object * result = (Object*)object(heap, num_type, n1_sz, 0, 0);
+  result->size = n1_sz;
+  word carry = 0;
+  for (word i = 0; i < n2_sz; ++i){
+    // Can add to the carry because only one of these two adds will overflow.
+    carry = adc(n1->contents[i], carry, result->contents + i);
+    carry += adc(result->contents[i], n2->contents[i], result->contents + i);
+  }
+
+  word padding = 0;
+  if (n2_sgn){
+    padding = (word)-1;
+  }
+  for (word i = n2_sz; i < n1_sz; ++i){
+    carry = adc(n1->contents[i], carry, result->contents + i);
+    carry += adc(result->contents[i], padding, result->contents + i);
+  }
+
+  // Always maintain a sign word at the end of the bignum
+  if (n1_sgn && n2_sgn && (result->contents[n1_sz-1] != (word)-1)){
+    result = (Object*)object_append_word(heap, (word*)result, (word)-1);
+  }else if (!n1_sgn && !n2_sgn && result->contents[n1_sz-1]){
+    result = (Object*)object_append_word(heap, (word*)result, 0);
+  }else{
+    word last = result->contents[n1_sz-1];
+    for (word i = n1_sz-1; i > 2; --i){
+      if (result->contents[i-1] == last){
+  	--result->size;
+      }
+    }
+  }
+
+  return (word*)result;
 }
 
 
@@ -1030,13 +1086,26 @@ word * str_to_num(word * heap, word * num){
     return 0;
   }
 
-  word size = (length / (sizeof(word) * 2)) + (length % (sizeof(word)*2) ? 1 : 0);
+  word size = (length / (sizeof(word) * 2));
   Object * final_num = (Object*)object(heap, num_type, size, 0, 0);
   word offset = '0';
   word current = 0;
+
+  word os = 0;
+  word c = 0;
+  for (; os < length % (sizeof(word) * 2); ++os){
+    word chr = arr[os];
+    if ('f' >= chr && chr >= 'a') {offset = 'a'-10;}
+    else if ('F' >= chr && chr >= 'A'){offset = 'A'-10;}
+    else if ('9' >= chr && chr >= '0'){offset = '0';}
+    else {_object_delete(heap, (word*)final_num); return 0;}
+    c <<= 4;
+    c |= (chr - offset);
+  }
+
   for (word i = 0; i < size; ++i){
     word j;
-    for (word index = 0; index < (sizeof(word) * 2) && (j = (size - i - 1) * sizeof(word)*2 + index) < length; ++index){
+    for (word index = os; index < (sizeof(word) * 2) + os && (j = (size - i - 1) * sizeof(word)*2 + index) < length; ++index){
       word chr = arr[j];
       if ('f' >= chr && chr >= 'a') {offset = 'a'-10;}
       else if ('F' >= chr && chr >= 'A'){offset = 'A'-10;}
@@ -1049,8 +1118,14 @@ word * str_to_num(word * heap, word * num){
     current = 0;
   }
 
+  //Add a word if final_num == 0 and is of size 0
+  if (c || !(size || c)){
+    final_num = (Object*)object_append_word(heap, (word*)final_num, c);
+  }
+  final_num = (Object*)object_append_word(heap, (word*)final_num, 0);
+
   if (neg){
-    num_negate((word*)final_num);
+    final_num = (Object*)num_negate((word*)final_num);
   }
 
   return (word*)final_num;
@@ -1059,7 +1134,18 @@ word * str_to_num(word * heap, word * num){
 
 void print_num(word * num){
   Object * n = (Object*)num;
-  for (word i = n->size; i > 0; --i){
-    print_uint(n->contents[i-1], 16, 0);
+  if (n->size > 1){
+    word last = n->contents[n->size - 1];
+    if (last){
+      print_cstr("-");
+      num_negate(num);
+    }
+    print_uint(n->contents[n->size - 2], 16, 0);
+    for (word i = n->size - 2; i > 0; --i){
+      print_uint(n->contents[i-1], 16, sizeof(word)*2);
+    }
+    if (last){
+      num_negate(num);
+    }
   }
 }

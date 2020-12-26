@@ -1,1 +1,1 @@
-deadbeefcafec0dedeadc0debeefc0de1234567899999999999999999999999999999 word
+=>[pair @>[[v1 v2][@>[[cond][:>[:cond :v1 :v2]]]]]] =>[#T @>[[v1 v2][:v1]]] =>[#F @>[[v1 v2][:v2]]] =>[if @>[[cond exp1 exp2][:>[:>[:pair :exp1 :exp2] :cond]]]] :>[:>[:if :#F :#F :#T] #T #F]

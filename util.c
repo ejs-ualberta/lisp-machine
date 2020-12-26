@@ -10,7 +10,17 @@ word max(sword x, sword y){
 }
 
 
+word umax(word x, word y){
+  return x < y ? y : x;
+}
+
+
 word min(sword x, sword y){
+  return x < y ? x : y;
+}
+
+
+word umin(word x, word y){
   return x < y ? x : y;
 }
 

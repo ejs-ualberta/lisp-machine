@@ -126,14 +126,17 @@ void set_delete(word * heap, word * set);
 word * queue(word * heap);
 word * queue_push(word * heap, word * queue, word data);
 word queue_pop(word * heap, word * queue);
-void num_negate(word *num);
+word * num_negate(word * num);
+word * num_add(word * heap, word * num1, word * num2);
 word * str_to_num(word * heap, word * num);
 void print_num(word * num);
 
 
 //util.c
 word max(sword x, sword y);
+word umax(word x, word y);
 word min(sword x, sword y);
+word umin(word x, word y);
 word strlen(const word * str);
 word strncmp(uint8_t * s1, uint8_t * s2, word len);
 void * memcpy(void * dest, const void * src, size_t n);

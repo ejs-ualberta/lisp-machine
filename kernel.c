@@ -357,6 +357,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   print_uint(obj->contents[0], 16, 0);nl(1);
   void rec_obj_print(word * obj);
   rec_obj_print(obj);
+  /* word * n1 = ((Object*)(obj->contents[0]))->contents[0]; */
+  /* word * n2 = ((Object*)(obj->contents[0]))->contents[1]; */
+  /* nl(1);rec_obj_print(num_add(global_heap_start, n1, n2));nl(1); */
   while(1){};
 
   word * machine_info = init_machine(ImageHandle, SystemTable);
