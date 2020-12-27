@@ -393,7 +393,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   fb_print_uint(fb_start, run(bytecode, machine_info), 0);
   array_delete(global_heap_start, bytecode);
-  //object_delete(global_heap_start, machine_info); Do not do this. Need a special function.
+  object_delete(global_heap_start, machine_info);
 
   while (1){
     //fb_print_uint(fb_start, 0xdeadbeef, 0);

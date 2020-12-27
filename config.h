@@ -42,7 +42,6 @@ word get_mem_sz(word * addr);
 
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
-word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable);
 word run(word * bytecode, word * machine);
 
 
@@ -148,3 +147,8 @@ word abs(word x);
 word arithmetic_shift_right(word val, word n);
 void outb(uint16_t port, uint8_t val);
 EFI_STATUS get_char(EFI_INPUT_KEY * input_key);
+
+
+//lisp.c
+word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable);
+word * tokenize(word * heap, word * code, word code_len);
