@@ -54,7 +54,7 @@ word * object_append(word * heap, word * obj, word * data){
   ++d->refcount;
   word max_sz = o->max_sz - obj_sz;
   if (o->size >= max_sz){
-    o = (Object*)(realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
+    o = (Object*)(realloc(heap, obj+1, obj_sz + max_sz + max_sz/2 + 1) - 1);
     if (!o){return 0;}
   }
   o->contents[o->size++] = (word)data;
@@ -103,11 +103,13 @@ void rec_obj_print(word * obj){
 
 
 void _object_delete(word * heap, word * obj){
+  //rec_obj_print(obj);nl(1);
   free(heap, obj + 1);
 }
 
+
 void object_delete(word * heap, word * obj){
-  Object * o = (Object*)obj;
+  Object *o = (Object *)obj;
   if (!o){
     return;
   }
@@ -148,10 +150,10 @@ void obj_array_append(word * heap, word * arr, word * data){
 
 void obj_array_delete(word * heap, word * obj) {
   Object * o = (Object*)obj;
-  if (--o->refcount){
+  Object * arr = (Object*)(o->contents[0]);
+  if (--arr->refcount){
     return;
   }
-  Object * arr = (Object*)(o->contents[0]);
   for (word i = 0; i < arr->size; ++i){
     object_delete(heap, (word*)(arr->contents[i]));
   }
@@ -1008,13 +1010,12 @@ word adc(word x, word y, word * result){
 }
 
 
-word * num_negate(word * num){
+void num_negate(word * num){
   Object * n = (Object*)num;
   word carry = 1;
   for (word i = 0; i < n->size; ++i){
     carry = adc(~(n->contents[i]), carry, n->contents + i);
   }
-  return (word*)n;
 }
 
 
@@ -1125,7 +1126,7 @@ word * str_to_num(word * heap, word * num){
   final_num = (Object*)object_append_word(heap, (word*)final_num, 0);
 
   if (neg){
-    final_num = (Object*)num_negate((word*)final_num);
+    num_negate((word*)final_num);
   }
 
   return (word*)final_num;

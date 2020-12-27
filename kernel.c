@@ -352,14 +352,31 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   init_types();
 
+  extern word num_alloced;
+  print_avl(global_heap_start[3], 0, 2);
+  print_uint(num_alloced, 16, 0);nl(1);
   extern word * tokenize(word * heap, word * code, word code_sz);
   Object * obj = (Object*)tokenize(global_heap_start, kernel_src, array_len(kernel_src));
-  print_uint(obj->contents[0], 16, 0);nl(1);
+  ++obj->refcount;
+  //print_uint(obj->contents[0], 16, 0);nl(1);
   void rec_obj_print(word * obj);
-  rec_obj_print(obj);
+  rec_obj_print(obj);nl(1);
+  print_uint(num_alloced, 16, 0);nl(1);
+  object_delete(global_heap_start, obj);
+  print_uint(num_alloced, 16, 0);nl(1);
+  print_avl(global_heap_start[3], 0, 2);
   /* word * n1 = ((Object*)(obj->contents[0]))->contents[0]; */
   /* word * n2 = ((Object*)(obj->contents[0]))->contents[1]; */
   /* nl(1);rec_obj_print(num_add(global_heap_start, n1, n2));nl(1); */
+  /* print_avl(global_heap_start[3], 0, 2); */
+  /* print_uint(num_alloced, 16, 0);nl(1); */
+  /* Object * cts = object(global_heap_start, string_type, 1, "a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 1); */
+  /* Object * arr = obj_array(global_heap_start, 1); */
+  /* ++ arr->refcount; */
+  /* obj_array_append(global_heap_start, arr, cts); */
+  /* object_delete(global_heap_start, arr); */
+  /* print_uint(num_alloced, 16, 0);nl(1); */
+  /* print_avl(global_heap_start[3], 0, 2); */
   while(1){};
 
   word * machine_info = init_machine(ImageHandle, SystemTable);

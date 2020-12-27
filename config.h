@@ -126,7 +126,7 @@ void set_delete(word * heap, word * set);
 word * queue(word * heap);
 word * queue_push(word * heap, word * queue, word data);
 word queue_pop(word * heap, word * queue);
-word * num_negate(word * num);
+void num_negate(word * num);
 word * num_add(word * heap, word * num1, word * num2);
 word * str_to_num(word * heap, word * num);
 void print_num(word * num);

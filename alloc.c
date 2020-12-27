@@ -1,5 +1,7 @@
 #include "config.h"
 
+word num_alloced = 0;
+
 typedef struct used_mem_datastructure{
   word mem_sz;
   word mem[];
@@ -59,6 +61,8 @@ word * alloc(word * heap, word mem_sz){
 
   umds * mem = (umds*)(min_ge);
   mem->mem_sz = mem_sz;
+  ++num_alloced;
+  //print_cstr("alloc: ");print_uint(&mem->mem, 16,0);nl(1);
   return (word*)&(mem->mem);
 }
 
@@ -74,6 +78,8 @@ void free(word * heap, word * addr){
   umds * mem_obj = (umds*)(addr - umds_sz);
   word fm_sz = mem_obj->mem_sz;
   avl_merge(tr, freed_mem, fm_sz);
+  //print_cstr("free: ");print_uint(addr, 16, 0);nl(1);
+  --num_alloced;
 }
 
 

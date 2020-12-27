@@ -5,6 +5,7 @@ void _object_delete(word * heap, word * obj);
 word * def = (word*)0;
 word * call = (word*)0;
 word * reduce = (word*)0;
+word * name = (word*)0;
 word * blk_l_delim = (word*)0;
 word * blk_r_delim = (word*)0;
 word * str_delim = (word*)0;
@@ -59,7 +60,7 @@ word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, w
 
       word * b = str_to_num(heap, tok);
       if (b){
-	object_delete(heap, tok);
+	_object_delete(heap, tok);
 	tok = b;
       }
       obj_array_append(heap, ret, tok);
@@ -78,6 +79,8 @@ word * tokenize(word * heap, word * code, word code_len){
   call = object(heap, string_type, 1, _call, 1);
   word _reduce[1] = {'>'};
   reduce = object(heap, string_type, 1, _reduce, 1);
+  word _name[1] = {'|'};
+  name = object(heap, string_type, 1, _name, 1);
   word _blk_l_delim[1] = {'['};
   blk_l_delim = object(heap, string_type, 1, _blk_l_delim, 1);
   word _blk_r_delim[1] = {']'};
@@ -100,6 +103,7 @@ word * tokenize(word * heap, word * code, word code_len){
   set_add(heap, ops, def, set_cmp);
   set_add(heap, ops, call, set_cmp);
   set_add(heap, ops, reduce, set_cmp);
+  set_add(heap, ops, name, set_cmp);
   set_add(heap, ops, blk_l_delim, set_cmp);
   set_add(heap, ops, blk_r_delim, set_cmp);
   set_add(heap, ops, str_delim, set_cmp);
