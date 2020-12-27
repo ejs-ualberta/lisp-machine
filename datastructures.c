@@ -54,7 +54,7 @@ word * object_append(word * heap, word * obj, word * data){
   ++d->refcount;
   word max_sz = o->max_sz - obj_sz;
   if (o->size >= max_sz){
-    o = (Object*)(realloc(heap, obj+1, obj_sz + max_sz + max_sz/2 + 1) - 1);
+    o = (Object*)(realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
     if (!o){return 0;}
   }
   o->contents[o->size++] = (word)data;
@@ -151,6 +151,7 @@ void obj_array_append(word * heap, word * arr, word * data){
 void obj_array_delete(word * heap, word * obj) {
   Object * o = (Object*)obj;
   Object * arr = (Object*)(o->contents[0]);
+  _object_delete(heap, obj);
   if (--arr->refcount){
     return;
   }
@@ -158,7 +159,6 @@ void obj_array_delete(word * heap, word * obj) {
     object_delete(heap, (word*)(arr->contents[i]));
   }
   _object_delete(heap, (word*)arr);
-  _object_delete(heap, obj);
 }
 
 
