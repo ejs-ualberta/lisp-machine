@@ -4,7 +4,7 @@
 
 // Note: Use black magic to get maximum size from the umds associated with the object when expanding; No sense consuming another word.
 // TODO: Refcount attributes, e.g. cyclic (also add in manual ability to deallocate or cycle check)
-
+word set_keyfind_cmp(word * kvp, word * key);
 
 word * num_type;
 word * string_type;
@@ -82,6 +82,10 @@ void obj_print(word * obj){
 
 void rec_obj_print(word * obj){
   Object * o = (Object*)obj;
+  if (!o){
+    print_cstr("Null ");
+    return;
+  }
   if (!obj_cmp((word*)o->type, string_type)){
     if (!o->size){
       print_cstr("''");
@@ -97,7 +101,22 @@ void rec_obj_print(word * obj){
     }
     print_cstr("]");spc(1);
   }else if (!obj_cmp((word*)o->type, num_type)){
-    print_num((word*)obj);spc(1);
+    print_num(obj);spc(1);
+  }else if (!obj_cmp((word*)o->type, set_type)){
+    print_cstr("{");spc(1);
+    print_set(obj);spc(1);
+    print_cstr("}");spc(1);
+  }else if (!obj_cmp((word*)o->type, cell_type)){
+    print_cstr("(");spc(1);
+    rec_obj_print((word*)o->contents[0]);
+    rec_obj_print((word*)o->contents[1]);
+    print_cstr(")");spc(1);
+  }else if (!obj_cmp((word*)o->type, function_type)){
+    //print_set((word*)o->contents[0]);
+    rec_obj_print((word*)o->contents[1]);
+    rec_obj_print((word*)o->contents[2]);
+  }else{
+    print_cstr("???");spc(1);
   }
 }
 
@@ -118,19 +137,36 @@ void object_delete(word * heap, word * obj){
   }
 
   word * type = (word*)o->type;
-  if (type == num_type || type == string_type){
+  if (!obj_cmp(type, num_type) || !obj_cmp(type, string_type)){
     _object_delete(heap, obj);
-  }else if(type == set_type){
+  }else if(!obj_cmp(type, set_type)){
     set_delete(heap, obj);
-  }else if(type == cell_type || type == function_type){
+  }/* else if(!obj_cmp(type, function_type)){ */
+  /*   extern word * sup; */
+  /*   extern word * self; */
+  /*   Object * ns = (Object*)o->contents[0]; */
+  /*   /\* print_avl(ns->contents[0], 0, 2);nl(1); *\/ */
+  /*   /\* word * sp = 0; *\/ */
+  /*   /\* if (set_get_value(ns, sup)){sp = set_get_remove_key(heap, (word*)(o->contents[0]), sup);} *\/ */
+  /*   /\* word * sf = set_get_remove_key(heap, (word*)(o->contents[0]), self); *\/ */
+  /*   /\* print_uint(sp, 16, 0);spc(1);print_uint(sf, 16, 0);nl(1); *\/ */
+  /*   /\* print_avl(ns->contents[0], 0, 2); *\/ */
+  /*   /\* if (sp){((Object*)sp)->contents[1] = 0; object_delete(heap, sp);} *\/ */
+  /*   /\* if (sf){((Object*)sf)->contents[1] = 0; object_delete(heap, sf);} *\/ */
+  /*   for (word i = 0; i < o->size; ++i){ */
+  /*     object_delete(heap, (word*)(o->contents[i])); */
+  /*   } */
+  /*   _object_delete(heap, obj); */
+  /* } */
+  else if(!obj_cmp(type, cell_type)){
     for (word i = 0; i < o->size; ++i){
       object_delete(heap, (word*)(o->contents[i]));
     }
     _object_delete(heap, obj);
-  }else if (type == array_type){
+  }else if (!obj_cmp(type, array_type)){
     obj_array_delete(heap, obj);
   }
-  object_delete(heap, type);
+  //object_delete(heap, type);
 }
 
 
@@ -142,9 +178,27 @@ word * obj_array(word * heap, word size){
 }
 
 
+word obj_array_size(word * arr){
+  Object * obj = (Object*)(((Object*)arr)->contents[0]);
+  return (word*)(obj->size);
+}
+
+
 void obj_array_append(word * heap, word * arr, word * data){
   Object * A = (Object*)arr;
   A->contents[0] = (word)object_append(heap, (word*)(A->contents[0]), data);
+}
+
+
+word * obj_array_idx(word * arr, word idx){
+  Object * obj = (Object*)(((Object*)arr)->contents[0]);
+  return (word*)(obj->contents[idx]);
+}
+
+
+void set_obj_array_idx(word * arr, word idx, word * val){
+  Object * obj = (Object*)(((Object*)arr)->contents[0]);
+  obj->contents[idx] = (word)val;
 }
 
 
@@ -519,6 +573,7 @@ word avl_tree_height(word * nd){
 word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*)){
   AVL_Node * tree = (AVL_Node*)(*tr);
   AVL_Node * node = (AVL_Node*)nd;
+  //print_uint(node, 16, 0);spc(1);print_uint(data, 16, 0);nl(1);
   if (!node){
     return 1;
   }
@@ -806,16 +861,22 @@ void init_types(void){
   word str_str[3] = {'s', 't', 'r'};
   string_type = object(global_heap_start , (word*)0, 3, str_str, 3);
   ((Object *)string_type)->type = (word)string_type;
+  ++((Object *)string_type)->refcount;
   word num_str[3] = {'n', 'u', 'm'};
   num_type = object(global_heap_start, string_type, 3, num_str, 3);
+  ++((Object *)num_type)->refcount;
   word arr_str[3] = {'a', 'r', 'r'};
   array_type = object(global_heap_start, string_type, 3, arr_str, 3);
+  ++((Object *)array_type)->refcount;
   word set_str[3] = {'s', 'e', 't'};
   set_type = object(global_heap_start, string_type, 3, set_str, 3);
+  ++((Object *)set_type)->refcount;
   word fun_str[3] = {'f', 'u', 'n'};
   function_type = object(global_heap_start, string_type, 3, fun_str, 3);
+  ++((Object *)function_type)->refcount;
   word cel_str[3] = {'c', 'e', 'l'};
   cell_type = object(global_heap_start, string_type, 3, cel_str, 3);
+  ++((Object *)cell_type)->refcount;
   /* word native_str[3] = {'n', 't', 'v'}; */
   /* native_type = object(global_heap_start, string_type, 3, native_str, 3); */
   /* word asm_str[3] = {'a', 's', 'm'}; */
@@ -890,10 +951,23 @@ word * set(word * heap){
 word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*)){
   Object * obj = (Object*)s;
   Object * d_obj = (Object*)data;
-  d_obj->refcount += 1;
+  if (data){d_obj->refcount += 1;}
   return avl_insert(heap, (word**)&(obj->contents), (word)data, cmp);
 }
 
+
+word * set_remove(word * heap, word * s, word * data, word (*cmp)(word*, word*)){
+  word ** tr = (word**)&(((Object*)s)->contents);
+  AVL_Node * node = (AVL_Node*)avl_find(tr, (word)data, cmp);
+  if (!node){return 0;}
+  word * res = (word*)node->data;
+  word * x = _avl_delete(tr, (word*)node, &avl_basic_cmp);
+  if (x){
+    free(heap, x);
+    return res;
+  }
+  return 0;
+}
 
 word set_add_str_key(word * heap, word * s, word * key, word * val){
   word * data = pair(heap, key, val);
@@ -901,12 +975,39 @@ word set_add_str_key(word * heap, word * s, word * key, word * val){
 }
 
 
+/* word set_remove_str_key(word * heap, word * set, word * key){ */
+/*   word ** tr = (word**)&(((Object*)set)->contents); */
+/*   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)key, &set_keyfind_cmp); */
+/*   if (!node){return 0;} */
+/*   object_delete(heap, (word*)node->data); */
+/*   word * x = _avl_delete(tr, (word*)node, &avl_basic_cmp); */
+/*   if (x){ */
+/*     free(heap, x); */
+/*     return 0; */
+/*   } */
+/*   return 1; */
+/* } */
+
+
+word * set_remove_str_key(word * heap, word * set, word * key){
+  word ** tr = (word**)&(((Object*)set)->contents);
+  AVL_Node * node = (AVL_Node*)avl_find(tr, (word)key, &set_keyfind_cmp);
+  if (!node){return 0;}
+  word * res = (word*)node->data;
+  word * x = _avl_delete(tr, (word*)node, &avl_basic_cmp);
+  if (x){
+    free(heap, x);
+    return res;
+  }
+  return 0;
+}
+
+
 word * in_set(word * set, word * obj){
   word ** tr = (word**)&(((Object*)set)->contents);
   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)obj, &set_cmp);
   if (!node){return 0;}
-  Object * item = (Object*)(node->data);
-  return (word*)item;
+  return (word*)(node->data);
 }
 
 
@@ -917,6 +1018,21 @@ word * set_get_value(word * set, word * obj){
   Object * pair = (Object*)(node->data);
   word * val = (word*)(pair->contents[1]);
   return val;
+}
+
+
+void _print_set(word * tree){
+  if (!tree){return;}
+  AVL_Node * node = (AVL_Node*)tree;
+  rec_obj_print((word*)node->data);
+  _print_set((word*)(node->right));
+  _print_set((word*)(node->left));
+}
+
+
+void print_set(word * s){
+  word * tree = (word*)((Object*)s)->contents[0];
+  _print_set(tree);
 }
 
 
@@ -1135,7 +1251,9 @@ word * str_to_num(word * heap, word * num){
 
 void print_num(word * num){
   Object * n = (Object*)num;
-  if (n->size > 1){
+  if (n->size == 1){
+    print_uint(n->contents[0], 16, 0);
+  }else if (n->size > 1){
     word last = n->contents[n->size - 1];
     if (last){
       print_cstr("-");

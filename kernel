@@ -1,1 +1,5 @@
-fffffffffffffffffffffffffffffffffffffffffffffff ffffffffffffffffffffff
+|>[True ~>[[v1 v2][:v1]]]
+|>[False ~>[[v1 v2][:v2]]]
+|>[pair ~>[[v1 v2][~>[[cond][:>[:cond :v1 :v2]]]]]]
+|>[if ~>[[cond exp1 exp2][:>[:>[:pair :exp1 :exp2] :cond]]]]
+:>[:if :False :False :True] True False]

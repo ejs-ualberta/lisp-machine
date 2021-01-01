@@ -34,9 +34,13 @@ void fb_print_uint(uint32_t * loc, word val, word padding);
 // alloc.c
 extern const word hds_sz;
 word * init_heap(word * heap_start, word heap_sz);
+word * gc_init(word * heap);
 word * alloc(word * heap, word mem_sz);
+word * gc_alloc(word * heap, word n);
 void free(word * heap, word * addr);
+void gc_free(word * heap, word * addr);
 word * realloc(word * heap, word * addr, word mem_sz);
+word * gc_realloc(word * heap, word * addr, word mem_sz);
 word get_mem_sz(word * addr);
 
 
@@ -54,6 +58,8 @@ extern word * function_type;
 extern word * cell_type;
 /* extern word * native_type; */
 /* extern word * asm_type; */
+
+extern const word obj_sz;
 
 typedef struct object{
   word max_sz; //(in umds, includes size of obj, must be here)
@@ -90,9 +96,13 @@ typedef struct link{
 word * object(word * heap, word * type, word size, word * contents, word n_words);
 word * object_append_word(word * heap, word * obj, word data);
 word * object_append(word * heap, word * obj, word * data);
+void rec_obj_print(word * obj);
 void object_delete(word * heap, word * obj);
 word * obj_array(word * heap, word size);
+word obj_array_size(word * arr);
 void obj_array_append(word * heap, word * arr, word * data);
+word * obj_array_idx(word * arr, word idx);
+void set_obj_array_idx(word * arr, word idx, word * val);
 void obj_array_delete(word * heap, word * obj);
 word * array(word * heap, word size, word item_sz);
 word * array_find(word * arr, word * start, word * item, word (*eq_fn)(word *, word *, word *), word * extra_params);
@@ -118,9 +128,12 @@ word obj_cmp(word * obj1, word * obj2);
 word set_keycmp(word * pair1, word * pair2);
 word * set(word * heap);
 word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*));
+word * set_remove(word * heap, word * s, word * data, word (*cmp)(word*, word*));
 word set_add_str_key(word * heap, word * s, word * key, word * val);
+word * set_remove_str_key(word * heap, word * s, word * key);
 word * in_set(word * set, word * obj);
 word * set_get_value(word * set, word * obj);
+void print_set(word * s);
 void set_delete(word * heap, word * set);
 word * queue(word * heap);
 word * queue_push(word * heap, word * queue, word data);

@@ -1,6 +1,8 @@
 #include "config.h"
 
-word num_alloced = 0;
+word true_num_alloced = 0;
+word gc_num_alloced = 0;
+word * gc_set;
 
 typedef struct used_mem_datastructure{
   word mem_sz;
@@ -36,6 +38,21 @@ word * init_heap(word * heap_start, word heap_sz){
 }
 
 
+word * gc_init(word * heap){
+  word size = 1;
+  word * mem = alloc(heap, size + obj_sz - 1);
+  if (!mem){return (word*)0;}
+  Object * obj = (Object*)(mem - 1);
+  obj->refcount = 1;
+  obj->type = (word)set_type;
+  ((Object*)set_type)->refcount += 1;
+  obj->size = size;
+  obj->contents[0] = 0;
+  gc_set = (word*)obj;
+  return (word*)obj;
+}
+
+
 word * alloc(word * heap, word mem_sz){
   extern void avl_move(word ** tr, word * dest, word * src);
   mem_sz += umds_sz;
@@ -60,10 +77,25 @@ word * alloc(word * heap, word mem_sz){
   }
 
   umds * mem = (umds*)(min_ge);
+  word * addr = (word*)&mem->mem;
   mem->mem_sz = mem_sz;
-  ++num_alloced;
-  //print_cstr("alloc: ");print_uint(&mem->mem, 16,0);nl(1);
-  return (word*)&(mem->mem);
+  //print_cstr("a");print_uint(&mem->mem, 16,0);spc(1);
+  //array_append(heap, alloc_buf + 3, (word*)&addr);
+  ++true_num_alloced;
+  return addr;
+}
+
+//TODO: gc_alloc and gc_free
+word * gc_alloc(word * heap, word n){
+  word * addr = alloc(heap, n);
+  word ** tr = (word**)&((Object*)gc_set)->contents;
+  word cond = avl_insert(heap, tr, (word)addr, &avl_basic_cmp);
+  if (cond){
+    free(heap, addr);
+    return 0;
+  }
+  ++gc_num_alloced;
+  return addr;
 }
 
 
@@ -78,8 +110,23 @@ void free(word * heap, word * addr){
   umds * mem_obj = (umds*)(addr - umds_sz);
   word fm_sz = mem_obj->mem_sz;
   avl_merge(tr, freed_mem, fm_sz);
-  //print_cstr("free: ");print_uint(addr, 16, 0);nl(1);
-  --num_alloced;
+  --true_num_alloced;
+  //print_cstr("f");print_uint(addr, 16, 0);spc(1);
+  /* for (word i = 0; i < 1024; ++i){ */
+  /*   if ((alloc_buf + 3)[i] == addr){ */
+  /*     (alloc_buf + 3)[i] = 0; */
+  /*     break; */
+  /*   } */
+  /* } */
+}
+
+
+void gc_free(word * heap, word * addr){
+  word * a = set_remove(heap, gc_set, addr, &avl_basic_cmp);
+  if (a){
+    free(heap, addr);
+  };
+  --gc_num_alloced;
 }
 
 
@@ -93,6 +140,28 @@ word * realloc(word * heap, word * addr, word mem_sz){
   }
   free(heap, addr);
   return new_addr;
+}
+
+
+word * gc_realloc(word * heap, word * addr, word mem_sz){
+  word * a = set_remove(heap, gc_set, addr, &avl_basic_cmp);
+  //if (!a){return 0;}
+  word * res = realloc(heap, addr, mem_sz);
+  if (avl_insert(heap, (word**)&(((Object*)gc_set)->contents), (word)addr, &avl_basic_cmp)){
+    return 0;
+  }
+  return res;
+}
+
+
+word * gc_free_all(word * heap, word * set){
+  word ** tr = (word**)&(((Object*)set)->contents);
+  while (*tr){
+    AVL_Node * root = (AVL_Node*)*tr;
+    word * addr = (word*)avl_delete(heap, tr, root->data, avl_basic_cmp);
+    gc_free(heap, addr);
+  }
+  free(heap, set + 1);
 }
 
 
