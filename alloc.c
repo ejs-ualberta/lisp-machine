@@ -135,7 +135,7 @@ word * realloc(word * heap, word * addr, word mem_sz){
   word * new_addr = alloc(heap, mem_sz);
   if (!new_addr){return 0;}
   umds * old_obj = (umds*)(addr - umds_sz);
-  for (word i = 0; i < old_obj->mem_sz; ++i){
+  for (word i = 0; i < umin(old_obj->mem_sz - 1, mem_sz); ++i){
     new_addr[i] = addr[i];
   }
   free(heap, addr);
@@ -143,23 +143,29 @@ word * realloc(word * heap, word * addr, word mem_sz){
 }
 
 
+//TODO: make this better.
 word * gc_realloc(word * heap, word * addr, word mem_sz){
-  word * a = set_remove(heap, gc_set, addr, &avl_basic_cmp);
-  //if (!a){return 0;}
-  word * res = realloc(heap, addr, mem_sz);
-  if (avl_insert(heap, (word**)&(((Object*)gc_set)->contents), (word)addr, &avl_basic_cmp)){
-    return 0;
+  /* word * a = set_remove(heap, gc_set, addr, &avl_basic_cmp); */
+  /* word * res = realloc(heap, addr, mem_sz); */
+  /* if (avl_insert(heap, (word**)&(((Object*)gc_set)->contents), (word)addr, &avl_basic_cmp)){ */
+  /*   return 0; */
+  /* } */
+  word * new_addr = gc_alloc(heap, mem_sz);
+  umds * old_obj = (umds*)(addr - umds_sz);
+  for (word i = 0; i < umin(old_obj->mem_sz - 1, mem_sz); ++i){
+    new_addr[i] = addr[i];
   }
-  return res;
+  gc_free(heap, addr);
+  return new_addr;
 }
 
 
-word * gc_free_all(word * heap, word * set){
+void gc_free_all(word * heap, word * set){
   word ** tr = (word**)&(((Object*)set)->contents);
   while (*tr){
     AVL_Node * root = (AVL_Node*)*tr;
-    word * addr = (word*)avl_delete(heap, tr, root->data, avl_basic_cmp);
-    gc_free(heap, addr);
+    word res = avl_delete(heap, tr, root->data, avl_basic_cmp);
+    gc_free(heap, (word*)root->data);
   }
   free(heap, set + 1);
 }

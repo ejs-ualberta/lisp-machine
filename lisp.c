@@ -192,7 +192,7 @@ word * tokenize(word * heap, word * code, word code_len){
   set_add(heap, whitespace, newline, set_cmp);
   set_add(heap, whitespace, tab, set_cmp);
   set_add(heap, whitespace, null, set_cmp);
-
+  
   word i = 0;
   word * ret = _tokenize(heap, code, code_len, &i, whitespace, ops);
 

@@ -350,7 +350,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   //fb_print_uint(fb_start + 100, (*(word*)(idt + 0x80)), 0);
   //fb_print_uint(fb_start + 550, (*(word*)(idt)), 0);
 
-  /* word * x = gc_alloc(global_heap_start, 1); */
+  //--------------------------------------------------------------------------------------------
+
+  /* word x; */
+  /* for (word i = 0; i < 10; ++i){ */
+  /*   x = gc_alloc(global_heap_start, 1); */
+  /* } */
   /* extern word * gc_set; */
   /* print_avl(((Object*)gc_set)->contents[0], 0, 2); */
   /* gc_realloc(global_heap_start, x, 1); */
@@ -367,18 +372,20 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   //print_avl(global_heap_start[3], 0, 2);
   print_uint(true_num_alloced, 16, 0);nl(1);
   print_uint(gc_num_alloced, 16, 0);nl(1);
+  print_avl(global_heap_start[3], 0, 2);
   extern word * gc_set;
   word ** tr = (word**)&((Object*)gc_set)->contents;
   extern word * run_prog(word * heap, word * machine, word * code, word code_sz);
   Object * obj = (Object*)run_prog(global_heap_start, machine_info, kernel_src, array_len(kernel_src));
   //print_avl(((Object*)gc_set)->contents[0], 0, 2);
-  //print_uint(obj, 16, 0);nl(1);
+  print_uint(obj, 16, 0);nl(1);
   void rec_obj_print(word * obj);
   rec_obj_print(obj);nl(1);
-  //print_avl(*tr, 0, 2);
   extern void gc_free_all(word * heap, gc_set);
-  //gc_free_all(global_heap_start, gc_set);
+  gc_free_all(global_heap_start, gc_set);
+  //print_avl(*tr, 0, 2);
   array_delete(global_heap_start, kernel_src);
+  print_avl(global_heap_start[3], 0, 2);
   print_uint(true_num_alloced, 16, 0);nl(1);
   print_uint(gc_num_alloced, 16, 0);nl(1);
   //print_avl(global_heap_start[3], 0, 2);
