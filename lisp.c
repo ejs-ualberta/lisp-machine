@@ -194,8 +194,7 @@ word * tokenize(word * heap, word * code, word code_len){
   set_add(heap, whitespace, null, set_cmp);
   
   word i = 0;
-  word * ret = _tokenize(heap, code, code_len, &i, whitespace, ops);
-
+  word * ret = _tokenize(heap, code, code_len, &i, whitespace, ops);;
   object_delete(heap, ops);
   object_delete(heap, whitespace);
 
@@ -225,20 +224,25 @@ word * fn_call(word * heap, word * slf, word * args){
   word * ret = 0;
   if (obj_array_size(args) == a_n_len + 1){
     word * tmp_fn = new_fn(heap, set_get_value(ns, sup), arg_names, exp);
-    ++((Object*)tmp_fn)->refcount;
     word * tmp_ns = (word*)((Object*)tmp_fn)->contents[0];
     for (word i = 0; i < a_n_len; ++i){
       set_add_str_key(heap, tmp_ns, obj_array_idx(arg_names, i), obj_array_idx(args, i+1));
     }
     word * result = eval_fn(heap, exp, tmp_ns);
-    ++((Object*)result)->refcount;
+    ++((Object*)result)->refcount; // So that object_delete brings the refcount to 0 later on.
     word len = obj_array_size(result);
     if (len){
       ret = obj_array_idx(result, len - 1);
       set_obj_array_idx(result, len - 1, (word*)0);
+      //Do not decrease refcount of ret here, as it still has +1 from being in result and it may be tmp_fn;
     }else{ret = (word*)0;}
     object_delete(heap, result);
+    ++((Object*)tmp_fn)->refcount; //Increase refcount because it will be lowered by object_delete.
     object_delete(heap, tmp_fn);
+    //print_cstr("RC: ");print_uint(((Object*)tmp_fn)->refcount, 16, 0);spc(1);
+    //print_cstr("Refs: ");print_uint(gc_check(tmp_fn), 16, 0);nl(1);
+    //rec_obj_print(tmp_fn);nl(1);
+    --((Object*)ret)->refcount; // Get rid of +1.
   }
   return ret;
 }
@@ -246,9 +250,12 @@ word * fn_call(word * heap, word * slf, word * args){
 
 word * get_val(word * obj, word * ns){
   word * ret = 0;
-  while (ns && !ret){
+  if (!ns){return ret;}
+  while (!ret){
     ret = set_get_value(ns, obj);
-    ns = (word*)((Object*)set_get_value(ns, sup))->contents[0];
+    Object * s = (Object*)set_get_value(ns, sup);
+    if (!s){break;}
+    ns = (word*)s->contents[0];
   }
   return ret;
 }
@@ -358,3 +365,10 @@ word * run_prog(word * heap, word * machine, word * code, word code_sz){
   object_delete(heap, ops);
   return res;
 }
+
+
+/* |>[pair ~>[[v1 v2][~>[[cond][:>[:cond :v1 :v2]]]]]] */
+/* |>[#T ~>[[v1 v2][:v1]]] */
+/* |>[#F ~>[[v1 v2][:v2]]] */
+/* |>[if ~>[[cond exp1 exp2][:>[:>[:pair :exp1 :exp2] :cond]]]] */
+/* :>[:>[:if :#F :#F :#T] True False] */

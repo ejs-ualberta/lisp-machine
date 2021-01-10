@@ -20,7 +20,7 @@ const word obj_sz = sizeof(Object)/sizeof(word);
 
 word * object(word * heap, word * type, word size, word * contents, word n_words){
   if (size < n_words){return (word*)0;}
-  word * mem = alloc(heap, size + obj_sz - 1);
+  word * mem = gc_alloc(heap, size + obj_sz - 1);
   if (!mem){return (word*)0;}
   Object * obj = (Object*)(mem - 1);
   obj->refcount = 0;
@@ -40,7 +40,7 @@ word * object_append_word(word * heap, word * obj, word data){
   Object * o = (Object*)obj;
   word max_sz = o->max_sz - obj_sz;
   if (o->size >= max_sz){
-    o = (Object*)(realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
+    o = (Object*)(gc_realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
     if (!o){return 0;}
   }
   o->contents[o->size++] = (word)data;
@@ -54,7 +54,7 @@ word * object_append(word * heap, word * obj, word * data){
   ++d->refcount;
   word max_sz = o->max_sz - obj_sz;
   if (o->size >= max_sz){
-    o = (Object*)(realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
+    o = (Object*)(gc_realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
     if (!o){return 0;}
   }
   o->contents[o->size++] = (word)data;
@@ -123,50 +123,45 @@ void rec_obj_print(word * obj){
 
 void _object_delete(word * heap, word * obj){
   //rec_obj_print(obj);nl(1);
-  free(heap, obj + 1);
+  gc_free(heap, obj + 1);
 }
 
-
+//TODO
 void object_delete(word * heap, word * obj){
   Object *o = (Object *)obj;
   if (!o){
     return;
   }
-  if (--(o->refcount)){
-    return;
-  }
 
   word * type = (word*)o->type;
-  if (!obj_cmp(type, num_type) || !obj_cmp(type, string_type)){
-    _object_delete(heap, obj);
-  }else if(!obj_cmp(type, set_type)){
-    set_delete(heap, obj);
-  }/* else if(!obj_cmp(type, function_type)){ */
-  /*   extern word * sup; */
-  /*   extern word * self; */
-  /*   Object * ns = (Object*)o->contents[0]; */
-  /*   /\* print_avl(ns->contents[0], 0, 2);nl(1); *\/ */
-  /*   /\* word * sp = 0; *\/ */
-  /*   /\* if (set_get_value(ns, sup)){sp = set_get_remove_key(heap, (word*)(o->contents[0]), sup);} *\/ */
-  /*   /\* word * sf = set_get_remove_key(heap, (word*)(o->contents[0]), self); *\/ */
-  /*   /\* print_uint(sp, 16, 0);spc(1);print_uint(sf, 16, 0);nl(1); *\/ */
-  /*   /\* print_avl(ns->contents[0], 0, 2); *\/ */
-  /*   /\* if (sp){((Object*)sp)->contents[1] = 0; object_delete(heap, sp);} *\/ */
-  /*   /\* if (sf){((Object*)sf)->contents[1] = 0; object_delete(heap, sf);} *\/ */
-  /*   for (word i = 0; i < o->size; ++i){ */
-  /*     object_delete(heap, (word*)(o->contents[i])); */
-  /*   } */
-  /*   _object_delete(heap, obj); */
-  /* } */
-  else if(!obj_cmp(type, cell_type)){
-    for (word i = 0; i < o->size; ++i){
-      object_delete(heap, (word*)(o->contents[i]));
+  if (!obj_cmp(type, function_type)){
+    word rc = --(o->refcount);
+    mark_transitive_closure(obj);
+    word get_rc(word * obj);
+    word get_tmp_rc(word * obj);
+    if (get_rc(obj) > get_tmp_rc(obj)){
+      mark_tc(obj, 0);
+      return;
     }
-    _object_delete(heap, obj);
-  }else if (!obj_cmp(type, array_type)){
-    obj_array_delete(heap, obj);
+    print_cstr("cc'd: ");print_uint(collect_obj(heap, obj), 16, 0);nl(1);
+    return;
+  }else if (--(o->refcount)){
+    return;
+  }else{
+    if (!obj_cmp(type, num_type) || !obj_cmp(type, string_type)){
+      _object_delete(heap, obj);
+    }else if(!obj_cmp(type, set_type)){
+      set_delete(heap, obj);
+    }else if(!obj_cmp(type, cell_type)){
+      for (word i = 0; i < o->size; ++i){
+	object_delete(heap, (word*)(o->contents[i]));
+      }
+      _object_delete(heap, obj);
+    }else if (!obj_cmp(type, array_type)){
+      obj_array_delete(heap, obj);
+    }
   }
-  //object_delete(heap, type);
+  object_delete(heap, type);
 }
 
 
@@ -180,7 +175,7 @@ word * obj_array(word * heap, word size){
 
 word obj_array_size(word * arr){
   Object * obj = (Object*)(((Object*)arr)->contents[0]);
-  return (word*)(obj->size);
+  return obj->size;
 }
 
 
@@ -861,7 +856,7 @@ void init_types(void){
   word str_str[3] = {'s', 't', 'r'};
   string_type = object(global_heap_start , (word*)0, 3, str_str, 3);
   ((Object *)string_type)->type = (word)string_type;
-  ++((Object *)string_type)->refcount;
+  ((Object *)string_type)->refcount += 2;
   word num_str[3] = {'n', 'u', 'm'};
   num_type = object(global_heap_start, string_type, 3, num_str, 3);
   ++((Object *)num_type)->refcount;

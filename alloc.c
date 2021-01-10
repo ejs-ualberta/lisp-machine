@@ -4,6 +4,10 @@ word true_num_alloced = 0;
 word gc_num_alloced = 0;
 word * gc_set;
 
+const word refcount_mask = (word)-1 >> (sizeof(word) * 4);
+
+/* word alloc_buf[2048] = {2048, 0, 1, 0}; */
+
 typedef struct used_mem_datastructure{
   word mem_sz;
   word mem[];
@@ -18,7 +22,32 @@ typedef struct heap_datastructure{
 
 const word umds_sz = sizeof(umds)/sizeof(word);
 const word hds_sz = sizeof(hds)/sizeof(word);
-const word min_alloc_sz = sizeof(AVL_Node)/sizeof(word);
+const word min_alloc_sz = sizeof(AVL_Node) / sizeof(word);
+
+
+word get_rc(word *obj) {
+  Object * o = (Object*)obj;
+  return o->refcount & refcount_mask;
+}
+
+
+word get_tmp_rc(word * obj) {
+  Object * o = (Object*)obj;
+  return o->refcount >> (sizeof(word) * 4);
+}
+
+
+void set_tmp_rc(word *obj, word val) {
+  Object * o = (Object*)obj;
+  o->refcount &= refcount_mask;
+  o->refcount |= val << (sizeof(word) * 4);
+}
+
+
+word get_mem_sz(word * addr){
+  umds * used_mem = (umds*)(addr - umds_sz);
+  return used_mem->mem_sz - umds_sz;
+}
 
 
 word * init_heap(word * heap_start, word heap_sz){
@@ -80,7 +109,7 @@ word * alloc(word * heap, word mem_sz){
   word * addr = (word*)&mem->mem;
   mem->mem_sz = mem_sz;
   //print_cstr("a");print_uint(&mem->mem, 16,0);spc(1);
-  //array_append(heap, alloc_buf + 3, (word*)&addr);
+  /* array_append(heap, alloc_buf + 3, (word*)&addr); */
   ++true_num_alloced;
   return addr;
 }
@@ -112,7 +141,7 @@ void free(word * heap, word * addr){
   avl_merge(tr, freed_mem, fm_sz);
   --true_num_alloced;
   //print_cstr("f");print_uint(addr, 16, 0);spc(1);
-  /* for (word i = 0; i < 1024; ++i){ */
+  /* for (word i = 0; i < 2048-3; ++i){ */
   /*   if ((alloc_buf + 3)[i] == addr){ */
   /*     (alloc_buf + 3)[i] = 0; */
   /*     break; */
@@ -160,18 +189,203 @@ word * gc_realloc(word * heap, word * addr, word mem_sz){
 }
 
 
-void gc_free_all(word * heap, word * set){
-  word ** tr = (word**)&(((Object*)set)->contents);
-  while (*tr){
-    AVL_Node * root = (AVL_Node*)*tr;
-    word res = avl_delete(heap, tr, root->data, avl_basic_cmp);
-    gc_free(heap, (word*)root->data);
+void mark_tc_tr(word * tree, word cond){
+  if (!tree){return;}
+  void mark_tc(word * obj, word cond);
+  AVL_Node * node = (AVL_Node*)tree;
+  AVL_Node * left = (AVL_Node*)node->left;
+  AVL_Node * right = (AVL_Node*)node->right;
+  mark_tc((word*)node->data, cond);
+  mark_tc_tr((word*)left, cond);
+  mark_tc_tr((word*)right, cond);
+  return;
+}
+
+
+void mark_tc(word * obj, word cond){
+  Object * o = (Object*)obj;
+  if (!o){return;}
+  word tmp_rc = get_tmp_rc(obj);
+
+  if (cond){
+    if (tmp_rc){
+      set_tmp_rc(obj, tmp_rc + 1);
+      return;
+    }
+  }else{
+    if (!tmp_rc){
+      return;
+    }
   }
-  free(heap, set + 1);
+  
+  set_tmp_rc(obj, cond);
+  word * type = (word*)o->type;
+  if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){
+    return;
+  }else if (!obj_cmp(type, set_type)){
+    mark_tc_tr((word*)o->contents[0], cond);
+  }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){
+    for (word i = 0; i < o->size; ++i){
+      mark_tc((word*)o->contents[i], cond);
+    }
+  }else if (!obj_cmp(type, array_type)){
+    Object * arr = (Object*)o->contents[0];
+    for (word i = 0; i < arr->size; ++i){
+      mark_tc((word*)arr->contents[i], cond);
+    }
+  }
 }
 
 
-word get_mem_sz(word * addr){
-  umds * used_mem = (umds*)(addr - umds_sz);
-  return used_mem->mem_sz - umds_sz;
+void mark_transitive_closure(word * obj){
+  if (!obj){return;}
+  Object * o = (Object*)obj;
+  word * type = (word*)o->type;
+
+  // Assuming a function cannot contain itself in args or expr
+  if (!obj_cmp(type, function_type)){
+    mark_tc((word*)o->contents[0], 1);
+  }
+  return;
 }
+
+
+word collect_obj_tr(word *heap, word * tree) {
+  if (!tree){return 0;}
+  AVL_Node * node = (AVL_Node*)tree;
+  AVL_Node * left = (AVL_Node*)node->left;
+  AVL_Node * right = (AVL_Node*)node->right;
+  word ret = collect_obj(heap, (word*)node->data);
+  ret += collect_obj_tr(heap, (word*)left);
+  ret += collect_obj_tr(heap, (word*)right);
+  return ret;
+}
+
+
+word gc_cmp(word * x, word * y) {
+  
+}
+
+
+word collect_obj(word * heap, word *obj) {
+  Object * o = (Object*)obj;
+  word ret = 0;
+  if (!o){return 0;}
+
+  // Return if object has already been freed
+  word ** tr = (word**)&(((Object*)gc_set)->contents);
+  AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(obj+1), &avl_basic_cmp);
+  if (!node){return 0;}
+
+  //Return if the tmp refcount has already been reset
+  word tmp_rc = get_tmp_rc(obj);
+  if (!tmp_rc){return 0;}
+
+  if (get_rc(obj) > tmp_rc){
+    mark_tc(obj, 0);
+    return 0;
+  }else{
+    word * mem = set_remove(heap, gc_set, obj+1, &avl_basic_cmp);
+    word * type = (word*)o->type;
+    if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){
+      ret = 1;
+    }else if (!obj_cmp(type, set_type)){
+      ret += collect_obj_tr(heap, (word*)o->contents[0]);
+    }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){
+      for (word i = 0; i < o->size; ++i){
+	ret += collect_obj(heap, (word*)o->contents[i]);
+      }
+    }else if (!obj_cmp(type, array_type)){
+      Object * arr = (Object*)o->contents[0];
+      for (word i = 0; i < arr->size; ++i){
+	ret += collect_obj(heap, (word*)arr->contents[i]);
+      }
+      _object_delete(heap, arr);
+    }
+    free(heap, mem);
+    --gc_num_alloced;
+    ret += 1;
+  }
+  return ret;
+}
+
+
+/* //TODO: Make this not scan over the whole gc_set. */
+/* word _gc_unmark(word * tree){ */
+/*   if (!tree){return 0;} */
+/*   AVL_Node * node = (AVL_Node*)tree; */
+/*   AVL_Node * left = (AVL_Node*)node->left; */
+/*   AVL_Node * right = (AVL_Node*)node->right; */
+/*   word ret = 0; */
+/*   Object * o = (Object*)((word*)node->data - 1); */
+  
+/*   if (o->refcount & seen){ */
+/*     o->refcount &= refcount_mask; */
+/*     ret = 1; */
+/*   } */
+/*   ret += _gc_unmark((word*)left); */
+/*   ret += _gc_unmark((word*)right); */
+/*   return ret; */
+/* } */
+
+
+/* word gc_unmark(word * gcs) { */
+/*   word * tree = (word*)((Object*)gc_set)->contents[0]; */
+/*   return _gc_unmark(tree); */
+/* } */
+
+
+/* word gc_check_tree(word * root, word * tree){ */
+/*   if (!tree){return 0;} */
+/*   word gc_check(word * root, word * obj); */
+/*   AVL_Node * node = (AVL_Node*)tree; */
+/*   AVL_Node * left = (AVL_Node*)node->left; */
+/*   AVL_Node * right = (AVL_Node*)node->right; */
+/*   word ret = gc_check(root, (word*)node->data); */
+/*   ret += gc_check_tree(root, (word*)left); */
+/*   ret += gc_check_tree(root, (word*)right); */
+/*   return ret; */
+/* } */
+
+
+/* word gc_check(word * root, word * obj){ */
+/*   if (!obj){ */
+/*     return 0; */
+/*   } */
+/*   Object * o = (Object*)obj; */
+/*   if (root == obj){ */
+/*     o->refcount |= seen; */
+/*     return 1; */
+/*   } */
+/*   if (o->refcount & seen){ */
+/*     return 0; */
+/*   } */
+/*   o->refcount |= seen; */
+
+/*   // Find how many times all things reachable from root reference root. */
+/*   word * type = (word*)o->type; */
+/*   word ret = 0; */
+/*   if (!obj_cmp(type, set_type)){ */
+/*     ret += gc_check_tree(root, (word*)o->contents[0]); */
+/*   }else if (!obj_cmp(type, cell_type)){ */
+/*     for (word i = 0; i < o->size; ++i){ */
+/*       ret += gc_check(root, (word*)(o->contents[i])); */
+/*     } */
+/*   }else if(!obj_cmp(type, function_type)){ */
+/*     ret += gc_check(root, (word*)(o->contents[0])); */
+/*   }else if (!obj_cmp(type, array_type)){ */
+/*     Object * arr = (Object*)o->contents[0]; */
+/*     for (word i = 0; i < arr->size; ++i){ */
+/*       ret += gc_check(root, (word*)(arr->contents[i])); */
+/*     } */
+/*   } */
+/*   return ret; */
+/* } */
+
+
+/* word gc_check_fn(word * root){ */
+/*   Object * r = (Object*)root; */
+/*   word count = r->refcount & refcount_mask; */
+/*   word res = gc_check_tree(root, (word*)((Object*)(r->contents[0]))->contents[0]); */
+/*   return res; */
+/* } */

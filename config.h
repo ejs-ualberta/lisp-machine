@@ -33,6 +33,9 @@ void fb_print_uint(uint32_t * loc, word val, word padding);
 
 // alloc.c
 extern const word hds_sz;
+extern word * gc_set;
+extern const word refcount_mask;
+word get_mem_sz(word * addr); 
 word * init_heap(word * heap_start, word heap_sz);
 word * gc_init(word * heap);
 word * alloc(word * heap, word mem_sz);
@@ -41,8 +44,9 @@ void free(word * heap, word * addr);
 void gc_free(word * heap, word * addr);
 word * realloc(word * heap, word * addr, word mem_sz);
 word * gc_realloc(word * heap, word * addr, word mem_sz);
-word get_mem_sz(word * addr);
-
+void mark_tc(word * obj, word cond);
+void mark_transitive_closure(word * obj);
+word collect_obj(word * heap, word *obj);
 
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
@@ -96,6 +100,7 @@ typedef struct link{
 word * object(word * heap, word * type, word size, word * contents, word n_words);
 word * object_append_word(word * heap, word * obj, word data);
 word * object_append(word * heap, word * obj, word * data);
+void obj_print(word * obj);
 void rec_obj_print(word * obj);
 void object_delete(word * heap, word * obj);
 word * obj_array(word * heap, word size);
