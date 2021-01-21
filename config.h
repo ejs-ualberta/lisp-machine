@@ -34,7 +34,8 @@ void fb_print_uint(uint32_t * loc, word val, word padding);
 // alloc.c
 extern const word hds_sz;
 extern word * gc_set;
-extern const word refcount_mask;
+//extern const word refcount_mask;
+extern word garbage_collection;
 word get_mem_sz(word * addr); 
 word * init_heap(word * heap_start, word heap_sz);
 word * gc_init(word * heap);
@@ -44,9 +45,7 @@ void free(word * heap, word * addr);
 void gc_free(word * heap, word * addr);
 word * realloc(word * heap, word * addr, word mem_sz);
 word * gc_realloc(word * heap, word * addr, word mem_sz);
-void mark_tc(word * obj, word cond);
-void mark_transitive_closure(word * obj);
-word collect_obj(word * heap, word *obj);
+void gc_collect(word * heap, word * gc_set);
 
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
@@ -135,6 +134,7 @@ word * set(word * heap);
 word set_add(word * heap, word * s, word * data, word (*cmp)(word*, word*));
 word * set_remove(word * heap, word * s, word * data, word (*cmp)(word*, word*));
 word set_add_str_key(word * heap, word * s, word * key, word * val);
+word set_set_key(word * s, word * key, word * val);
 word * set_remove_str_key(word * heap, word * s, word * key);
 word * in_set(word * set, word * obj);
 word * set_get_value(word * set, word * obj);
@@ -142,6 +142,7 @@ void print_set(word * s);
 void set_delete(word * heap, word * set);
 word * queue(word * heap);
 word * queue_push(word * heap, word * queue, word data);
+word queue_last(word * heap, word * queue);
 word queue_pop(word * heap, word * queue);
 void num_negate(word * num);
 word * num_add(word * heap, word * num1, word * num2);

@@ -374,14 +374,14 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   print_uint(gc_num_alloced, 16, 0);nl(1);
   print_avl(global_heap_start[3], 0, 2);
   extern word * gc_set;
-  word ** tr = (word**)&((Object*)gc_set)->contents;
   extern word * run_prog(word * heap, word * machine, word * code, word code_sz);
   Object * obj = (Object*)run_prog(global_heap_start, machine_info, kernel_src, array_len(kernel_src));
-  print_avl(((Object*)gc_set)->contents[0], 0, 2);
+  //obj_print((word*)0x3fe00e50 - 1);nl(1);
+  //print_avl(((Object*)gc_set)->contents[0], 0, 2);
+  extern word check_gc();
+  //check_gc();
   //print_uint(obj, 16, 0);nl(1);
-  void rec_obj_print(word * obj);
   rec_obj_print(obj);nl(1);
-  //print_avl(*tr, 0, 2);
   array_delete(global_heap_start, kernel_src);
   //print_avl(global_heap_start[3], 0, 2);
   print_uint(true_num_alloced, 16, 0);nl(1);
@@ -395,6 +395,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /*     //print_uint(((Object*)(val - 1))->refcount, 16, 0);spc(1); */
   /*     void obj_print(word * obj); */
   /*     //obj_print(val); */
+  
   /*     //free(global_heap_start, val); */
   /*   } */
   /* } */

@@ -113,8 +113,10 @@ void rec_obj_print(word * obj){
     print_cstr(")");spc(1);
   }else if (!obj_cmp((word*)o->type, function_type)){
     //print_set((word*)o->contents[0]);
+    print_cstr("<");spc(1);
     rec_obj_print((word*)o->contents[1]);
     rec_obj_print((word*)o->contents[2]);
+    print_cstr(">");spc(1);
   }else{
     print_cstr("???");spc(1);
   }
@@ -129,23 +131,15 @@ void _object_delete(word * heap, word * obj){
 //TODO
 void object_delete(word * heap, word * obj){
   Object *o = (Object *)obj;
-  if (!o){
-    return;
-  }
+  if (!o){return;}
 
   word * type = (word*)o->type;
-  if (!obj_cmp(type, function_type)){
-    word rc = --(o->refcount);
-    mark_transitive_closure(obj);
-    word get_rc(word * obj);
-    word get_tmp_rc(word * obj);
-    if (get_rc(obj) > get_tmp_rc(obj)){
-      mark_tc(obj, 0);
-      return;
-    }
-    print_cstr("cc'd: ");print_uint(collect_obj(heap, obj), 16, 0);nl(1);
-    return;
-  }else if (--(o->refcount)){
+  /* if (!obj_cmp(type, function_type)){ */
+  /*   --(o->refcount); */
+  /*   word n_freed = collect_obj(heap, obj); */
+  /*   if (!n_freed){return;} */
+  /* }else  */
+  if (--(o->refcount)){
     return;
   }else{
     if (!obj_cmp(type, num_type) || !obj_cmp(type, string_type)){
@@ -970,6 +964,17 @@ word set_add_str_key(word * heap, word * s, word * key, word * val){
 }
 
 
+word set_set_key(word * s, word * key, word * val){
+  word ** tr = (word**)&(((Object*)s)->contents);
+  AVL_Node * node = (AVL_Node*)avl_find(tr, (word)key, &set_keyfind_cmp);
+  if (!node){return 0;}
+  Object * pear = (Object*)node->data;
+  word old_val = pear->contents[1];
+  pear->contents[1] = (word)val;
+  return old_val;
+}
+
+
 /* word set_remove_str_key(word * heap, word * set, word * key){ */
 /*   word ** tr = (word**)&(((Object*)set)->contents); */
 /*   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)key, &set_keyfind_cmp); */
@@ -1065,7 +1070,7 @@ word * queue_push(word * heap, word * queue, word data){
 }
 
 
-word queue_pop(word * heap, word * queue){
+word queue_last(word * heap, word * queue){
   Queue * q = (Queue*)queue;
   Link * last = (Link*)(q->last);
   if (!last){return 0;}
@@ -1074,6 +1079,19 @@ word queue_pop(word * heap, word * queue){
   else{((Link*)(last->prev))->next = 0;}
   word data = last->data;
   free(heap, (word*)last);
+  return data;
+}
+
+
+word queue_pop(word * heap, word * queue){
+  Queue * q = (Queue*)queue;
+  Link * first = (Link*)(q->first);
+  if (!first){return 0;}
+  q->first = first->next;
+  if (!q->first){q->last = 0;}
+  else{((Link*)(first->next))->prev = 0;}
+  word data = first->data;
+  free(heap, (word*)first);
   return data;
 }
 

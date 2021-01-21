@@ -5,6 +5,7 @@ word gc_num_alloced = 0;
 word * gc_set;
 
 const word refcount_mask = (word)-1 >> (sizeof(word) * 4);
+const word visited_mask = (word)1 << (sizeof(word) * 8 - 1);
 
 /* word alloc_buf[2048] = {2048, 0, 1, 0}; */
 
@@ -33,14 +34,34 @@ word get_rc(word *obj) {
 
 word get_tmp_rc(word * obj) {
   Object * o = (Object*)obj;
-  return o->refcount >> (sizeof(word) * 4);
+  return (o->refcount & ~visited_mask) >> (sizeof(word) * 4);
+}
+
+
+void _set_tmp_rc(word *obj, word val) {
+  Object * o = (Object*)obj;
+  o->refcount &= refcount_mask;
+  o->refcount |= val << (sizeof(word) * 4);
 }
 
 
 void set_tmp_rc(word *obj, word val) {
   Object * o = (Object*)obj;
-  o->refcount &= refcount_mask;
+  o->refcount &= refcount_mask | visited_mask;
   o->refcount |= val << (sizeof(word) * 4);
+}
+
+
+word visited(word *obj) {
+  Object * o = (Object*)obj;
+  return o->refcount & visited_mask;
+}
+
+
+void set_visited(word *obj, word val){
+  Object * o = (Object*)obj;
+  o->refcount &= (word)-1 >> 1;
+  o->refcount |= val << (sizeof(word)*8 - 1);
 }
 
 
@@ -189,125 +210,346 @@ word * gc_realloc(word * heap, word * addr, word mem_sz){
 }
 
 
-void mark_tc_tr(word * tree, word cond){
-  if (!tree){return;}
-  void mark_tc(word * obj, word cond);
+word _check_gc(word * tree) {
+  if (!tree){return 0;}
   AVL_Node * node = (AVL_Node*)tree;
   AVL_Node * left = (AVL_Node*)node->left;
   AVL_Node * right = (AVL_Node*)node->right;
-  mark_tc((word*)node->data, cond);
-  mark_tc_tr((word*)left, cond);
-  mark_tc_tr((word*)right, cond);
+  word ret = 1;
+  Object * o = (Object*)((word*)node->data - 1);
+  if (1){
+      print_uint((word)o->refcount, 16, 0);spc(1);print_uint((word)o, 16, 0);spc(1);rec_obj_print((word*)o);nl(1);}
+  ret += _check_gc((word*)left);
+  ret += _check_gc((word*)right);
+  return ret;
+}
+
+
+word check_gc() {
+  word * tr = (word*)((Object*)gc_set)->contents[0];
+  return _check_gc(tr);
+}
+
+
+void mark_tc_tr(word * heap, word * q, word * tree, word cond){
+  if (!tree){return;}
+  void _mark_tc(word * heap, word * q, word * obj, word cond);
+  AVL_Node * node = (AVL_Node*)tree;
+  AVL_Node * left = (AVL_Node*)node->left;
+  AVL_Node * right = (AVL_Node*)node->right;
+  _mark_tc(heap, q, (word*)node->data, cond);
+  mark_tc_tr(heap, q, (word*)left, cond);
+  mark_tc_tr(heap, q, (word*)right, cond);
   return;
 }
 
 
-void mark_tc(word * obj, word cond){
+void _mark_tc(word * heap, word * q, word * obj, word cond){
   Object * o = (Object*)obj;
   if (!o){return;}
   word tmp_rc = get_tmp_rc(obj);
 
   if (cond){
-    if (tmp_rc){
+    if (visited(obj)){
       set_tmp_rc(obj, tmp_rc + 1);
       return;
     }
+    queue_push(heap, q, (word)obj);
+    set_visited(obj, 1);
   }else{
-    if (!tmp_rc){
+    if (!visited(obj)){
       return;
     }
+    set_visited(obj, 0);
   }
+
   
   set_tmp_rc(obj, cond);
   word * type = (word*)o->type;
   if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){
     return;
   }else if (!obj_cmp(type, set_type)){
-    mark_tc_tr((word*)o->contents[0], cond);
+    mark_tc_tr(heap, q, (word*)o->contents[0], cond);
   }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){
     for (word i = 0; i < o->size; ++i){
-      mark_tc((word*)o->contents[i], cond);
+      _mark_tc(heap, q, (word*)o->contents[i], cond);
     }
   }else if (!obj_cmp(type, array_type)){
     Object * arr = (Object*)o->contents[0];
     for (word i = 0; i < arr->size; ++i){
-      mark_tc((word*)arr->contents[i], cond);
+      _mark_tc(heap, q, (word*)arr->contents[i], cond);
     }
   }
 }
 
 
-void mark_transitive_closure(word * obj){
-  if (!obj){return;}
-  Object * o = (Object*)obj;
-  word * type = (word*)o->type;
-
-  // Assuming a function cannot contain itself in args or expr
-  if (!obj_cmp(type, function_type)){
-    mark_tc((word*)o->contents[0], 1);
+word * mark_tc(word * heap, word * obj, word cond){
+  word * q = 0;
+  if (cond){q = queue(heap);}
+  _mark_tc(heap, q, obj, cond);
+  if (cond){
+    word t_rc = get_tmp_rc(obj);
+    set_tmp_rc(obj, t_rc - 1);
   }
-  return;
+  return q;
 }
 
 
-word collect_obj_tr(word *heap, word * tree) {
+void decrease_refcs(word *obj) {
+  if (!obj){return;}
+  Object * o = (Object*)obj;
+  //set_tmp_rc(obj, get_tmp_rc(obj) - 1);
+  --o->refcount;
+}
+
+
+word sweep_tr(word * heap, word * tree) {
+  word sweep(word * heap, word * obj);
   if (!tree){return 0;}
   AVL_Node * node = (AVL_Node*)tree;
   AVL_Node * left = (AVL_Node*)node->left;
   AVL_Node * right = (AVL_Node*)node->right;
-  word ret = collect_obj(heap, (word*)node->data);
-  ret += collect_obj_tr(heap, (word*)left);
-  ret += collect_obj_tr(heap, (word*)right);
+  decrease_refcs((word*)node->data);
+  word ret = sweep(heap, (word*)node->data);
+  free(heap, (word*)node);
+  ret += sweep_tr(heap, (word*)left);
+  ret += sweep_tr(heap, (word*)right);
   return ret;
 }
 
 
-word gc_cmp(word * x, word * y) {
-  
-}
-
-
-word collect_obj(word * heap, word *obj) {
+word sweep(word * heap, word * obj){
   Object * o = (Object*)obj;
-  word ret = 0;
-  if (!o){return 0;}
+  if (!o || !visited(obj)){return 0;}
 
-  // Return if object has already been freed
+  // Return if object has already been freed or is in the process of being freed
   word ** tr = (word**)&(((Object*)gc_set)->contents);
   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(obj+1), &avl_basic_cmp);
   if (!node){return 0;}
 
-  //Return if the tmp refcount has already been reset
-  word tmp_rc = get_tmp_rc(obj);
-  if (!tmp_rc){return 0;}
-
-  if (get_rc(obj) > tmp_rc){
-    mark_tc(obj, 0);
-    return 0;
-  }else{
-    word * mem = set_remove(heap, gc_set, obj+1, &avl_basic_cmp);
-    word * type = (word*)o->type;
-    if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){
-      ret = 1;
-    }else if (!obj_cmp(type, set_type)){
-      ret += collect_obj_tr(heap, (word*)o->contents[0]);
-    }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){
-      for (word i = 0; i < o->size; ++i){
-	ret += collect_obj(heap, (word*)o->contents[i]);
-      }
-    }else if (!obj_cmp(type, array_type)){
-      Object * arr = (Object*)o->contents[0];
-      for (word i = 0; i < arr->size; ++i){
-	ret += collect_obj(heap, (word*)arr->contents[i]);
-      }
-      _object_delete(heap, arr);
+  word ret = 0;
+  word * mem = set_remove(heap, gc_set, obj+1, &avl_basic_cmp);
+  word * type = (word*)o->type;
+  if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){
+    ret = 1;
+  }else if (!obj_cmp(type, set_type)){
+    ret += sweep_tr(heap, (word*)o->contents[0]);
+  }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){
+    for (word i = 0; i < o->size; ++i){
+      decrease_refcs((word*)o->contents[i]);
+      ret += sweep(heap, (word*)o->contents[i]);
     }
-    free(heap, mem);
-    --gc_num_alloced;
-    ret += 1;
+  }else if (!obj_cmp(type, array_type)){
+    Object * arr = (Object*)o->contents[0];
+    for (word i = 0; i < arr->size; ++i){
+      decrease_refcs((word*)arr->contents[i]);
+      ret += sweep(heap, (word*)arr->contents[i]);
+    }
+    void _object_delete(word * heap, word * arr);
+    set_remove(heap, gc_set, (word*)arr + 1, &avl_basic_cmp);
+    _object_delete(heap, (word*)arr);
   }
+  object_delete(heap, type);
+  free(heap, mem);
+  --gc_num_alloced;
+  ret += 1;
   return ret;
 }
+
+
+void _gc_collect(word *heap, word *tree, word * q) {
+  if (!tree){return;}
+   AVL_Node * node = (AVL_Node*)tree;
+  AVL_Node * left = (AVL_Node*)node->left;
+  AVL_Node * right = (AVL_Node*)node->right;
+  _gc_collect(heap, (word*)left, q);
+  _gc_collect(heap, (word*)right, q);
+  Object * data = (Object*)((word*)node->data - 1);
+  if (!obj_cmp((word*)data->type, function_type)){
+    queue_push(heap, q, (word)data);
+  }
+}
+
+
+void gc_collect(word * heap, word * gc_set){
+  word * tr = (word*)((Object*)gc_set)->contents[0];
+  word * q = queue(heap);
+  _gc_collect(heap, tr, q);
+  word * data;
+  while((data = (word*)queue_pop(heap, q))){
+    //continue if obj has already been freed
+    word ** tr = (word**)&(((Object*)gc_set)->contents);
+    AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(data+1), &avl_basic_cmp);
+    if (!node){continue;}
+
+    word * q = mark_tc(heap, data, 1);
+    word * obj;
+    while ((obj = (word*)queue_pop(heap, q))){
+      if (get_tmp_rc(obj) < get_rc(obj)){
+	mark_tc(heap, obj, 0);
+      }
+    }
+    free(heap, q);
+
+    sweep(heap, data);
+
+    //check_gc();
+    //print_uint(0xdeadbeef, 16, 0);
+  }
+  free(heap, q);
+}
+
+
+/* void cover_tree(word * tree, void (*fn)(word*)) { */
+/*   if (!tree){return;} */
+/*   AVL_Node * node = (AVL_Node*)tree; */
+/*   AVL_Node * left = (AVL_Node*)node->left; */
+/*   AVL_Node * right = (AVL_Node*)node->right; */
+/*   fn((word*)node->data); */
+/*   cover_tree((word*)left, fn); */
+/*   cover_tree((word*)right, fn); */
+/* } */
+
+
+/* void decrease_refcs(word * obj){ */
+/*   Object * o = (Object*)obj; */
+/*   if (!o || visited(obj)){return;} */
+/*   set_visited(obj, 1); */
+/*   word * type = (word*)o->type; */
+/*   word tmp_rc = get_tmp_rc(obj); */
+/*   word rc = get_rc(obj); */
+/*   if (rc <= tmp_rc){ */
+/*     if (!obj_cmp(type, set_type)){ */
+/*       cover_tree((word*)o->contents[0], &_decrease_refcs); */
+/*     }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){ */
+/*       for (word i = 0; i < o->size; ++i){ */
+/* 	word * obj1 = (word*)o->contents[i]; */
+/*         _decrease_refcs(obj1); */
+/*       } */
+/*     }else if (!obj_cmp(type, array_type)){ */
+/*       Object * arr = (Object*)o->contents[0]; */
+/*       for (word i = 0; i < arr->size; ++i){ */
+/* 	word * obj1 = (word*)arr->contents[i]; */
+/* 	_decrease_refcs(obj1); */
+/*       } */
+/*     } */
+/*   } */
+
+/*   if (!obj_cmp(type, set_type)){ */
+/*     cover_tree((word*)o->contents[0], &decrease_refcs); */
+/*   }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){ */
+/*     for (word i = 0; i < o->size; ++i){ */
+/*       decrease_refcs((word*)o->contents[i]); */
+/*     } */
+/*   }else if (!obj_cmp(type, array_type)){ */
+/*     Object * arr = (Object*)o->contents[0]; */
+/*     for (word i = 0; i < arr->size; ++i){ */
+/*       decrease_refcs((word*)arr->contents[i]); */
+/*     } */
+/*   } */
+/* } */
+
+
+/* word sweep_tr(word * heap, word * tree) { */
+/*   word sweep(word * heap, word * obj); */
+/*   if (!tree){return 0;} */
+/*   AVL_Node * node = (AVL_Node*)tree; */
+/*   AVL_Node * left = (AVL_Node*)node->left; */
+/*   AVL_Node * right = (AVL_Node*)node->right; */
+/*   word ret = sweep(heap, (word*)node->data); */
+/*   ret += sweep_tr(heap, (word*)left); */
+/*   ret += sweep_tr(heap, (word*)right); */
+/*   return ret; */
+/* } */
+
+
+/* word sweep(word * heap, word * obj){ */
+/*   Object * o = (Object*)obj; */
+/*   if (!o || !visited(obj)){return 0;} */
+
+/*   // Return if object has already been freed */
+/*   word ** tr = (word**)&(((Object*)gc_set)->contents); */
+/*   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(obj+1), &avl_basic_cmp); */
+/*   if (!node){return 0;} */
+  
+/*   word * type = (word*)o->type; */
+/*   word ret = 0; */
+/*   word tmp_rc = get_tmp_rc(obj); */
+/*   word rc = get_rc(obj); */
+
+/*   if (get_rc(obj) > tmp_rc){ */
+/*     mark_tc(obj, 0); */
+/*     return 0; */
+/*   }else{ */
+/*     word * mem = set_remove(heap, gc_set, obj+1, &avl_basic_cmp); */
+/*     word * type = (word*)o->type; */
+/*     if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){ */
+/*       ret = 1; */
+/*     }else if (!obj_cmp(type, set_type)){ */
+/*       ret += sweep_tr(heap, (word*)o->contents[0]); */
+/*     }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){ */
+/*       for (word i = 0; i < o->size; ++i){ */
+/* 	ret += sweep(heap, (word*)o->contents[i]); */
+/*       } */
+/*     }else if (!obj_cmp(type, array_type)){ */
+/*       Object * arr = (Object*)o->contents[0]; */
+/*       for (word i = 0; i < arr->size; ++i){ */
+/* 	ret += sweep(heap, (word*)arr->contents[i]); */
+/*       } */
+/*       void _object_delete(word * heap, word * arr); */
+/*       set_remove(heap, gc_set, (word*)arr + 1, &avl_basic_cmp); */
+/*       _object_delete(heap, (word*)arr); */
+/*     } */
+/*     object_delete(heap, type); */
+/*     free(heap, mem); */
+/*     --gc_num_alloced; */
+/*     ret += 1; */
+/*   } */
+/* } */
+
+
+/* word collect_obj(word * heap, word * obj) { */
+/*   Object * o = (Object*)obj; */
+
+/*   // Return if object has already been freed */
+/*   word ** tr = (word**)&(((Object*)gc_set)->contents); */
+/*   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(obj+1), &avl_basic_cmp); */
+/*   if (!node){return 0;} */
+/*   mark_tc(obj, 1); */
+/*   if (get_tmp_rc(obj) < get_rc(obj)){ */
+/*     mark_tc(obj, 0); */
+/*     return 0; */
+/*   } */
+/*   decrease_refcs(obj); */
+/*   print_uint(o->refcount, 16, 0); rec_obj_print(obj);spc(1); */
+/*   return sweep(heap, obj); */
+/* } */
+
+
+/* void _gc_collect(word *heap, word *tree, word * q) { */
+/*   if (!tree){return;} */
+/*    AVL_Node * node = (AVL_Node*)tree; */
+/*   AVL_Node * left = (AVL_Node*)node->left; */
+/*   AVL_Node * right = (AVL_Node*)node->right; */
+/*   _gc_collect(heap, (word*)left, q); */
+/*   _gc_collect(heap, (word*)right, q); */
+/*   Object * data = (Object*)((word*)node->data - 1); */
+/*   if (!obj_cmp((word*)data->type, function_type)){ */
+/*     queue_push(heap, q, (word)data); */
+/*   } */
+/* } */
+
+
+/* void gc_collect(word * heap, word * gc_set){ */
+/*   word * tr = (word*)((Object*)gc_set)->contents[0]; */
+/*   word * q = queue(heap); */
+/*   _gc_collect(heap, tr, q); */
+/*   word * data; */
+/*   while((data = (word*)queue_pop(heap, q))){ */
+/*     collect_obj(heap, data); */
+/*   } */
+/*   free(heap, q); */
+/* } */
 
 
 /* //TODO: Make this not scan over the whole gc_set. */
@@ -388,4 +630,60 @@ word collect_obj(word * heap, word *obj) {
 /*   word count = r->refcount & refcount_mask; */
 /*   word res = gc_check_tree(root, (word*)((Object*)(r->contents[0]))->contents[0]); */
 /*   return res; */
+/* } */
+
+
+/* word collect_obj_tr(word *heap, word * tree) { */
+/*   if (!tree){return 0;} */
+/*   AVL_Node * node = (AVL_Node*)tree; */
+/*   AVL_Node * left = (AVL_Node*)node->left; */
+/*   AVL_Node * right = (AVL_Node*)node->right; */
+/*   word ret = collect_obj(heap, (word*)node->data); */
+/*   ret += collect_obj_tr(heap, (word*)left); */
+/*   ret += collect_obj_tr(heap, (word*)right); */
+/*   return ret; */
+/* } */
+
+
+/* word collect_obj(word * heap, word *obj) { */
+/*   Object * o = (Object*)obj; */
+/*   word ret = 0; */
+/*   if (!o){return 0;} */
+
+/*   // Return if object has already been freed */
+/*   word ** tr = (word**)&(((Object*)gc_set)->contents); */
+/*   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(obj+1), &avl_basic_cmp); */
+/*   if (!node){return 0;} */
+
+/*   //Return if the tmp refcount has already been reset */
+/*   word tmp_rc = get_tmp_rc(obj); */
+/*   if (!tmp_rc){return 0;} */
+
+/*   if (get_rc(obj) > tmp_rc){ */
+/*     mark_tc(obj, 0); */
+/*     return 0; */
+/*   }else{ */
+/*     word * mem = set_remove(heap, gc_set, obj+1, &avl_basic_cmp); */
+/*     word * type = (word*)o->type; */
+/*     if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){ */
+/*       ret = 1; */
+/*     }else if (!obj_cmp(type, set_type)){ */
+/*       ret += collect_obj_tr(heap, (word*)o->contents[0]); */
+/*     }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){ */
+/*       for (word i = 0; i < o->size; ++i){ */
+/* 	ret += collect_obj(heap, (word*)o->contents[i]); */
+/*       } */
+/*     }else if (!obj_cmp(type, array_type)){ */
+/*       Object * arr = (Object*)o->contents[0]; */
+/*       for (word i = 0; i < arr->size; ++i){ */
+/* 	ret += collect_obj(heap, (word*)arr->contents[i]); */
+/*       } */
+/*       void _object_delete(word * heap, word * arr); */
+/*       _object_delete(heap, (word*)arr); */
+/*     } */
+/*     free(heap, mem); */
+/*     --gc_num_alloced; */
+/*     ret += 1; */
+/*   } */
+/*   return ret; */
 /* } */
