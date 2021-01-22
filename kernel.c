@@ -379,9 +379,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   //obj_print((word*)0x3fe00e50 - 1);nl(1);
   //print_avl(((Object*)gc_set)->contents[0], 0, 2);
   extern word check_gc();
-  //check_gc();
+  check_gc();
   //print_uint(obj, 16, 0);nl(1);
-  //rec_obj_print(obj);nl(1);
+  rec_obj_print(obj);nl(1);
   array_delete(global_heap_start, kernel_src);
   //print_avl(global_heap_start[3], 0, 2);
   print_uint(true_num_alloced, 16, 0);nl(1);

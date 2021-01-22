@@ -92,6 +92,13 @@ word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 }
 
 
+void o_del(word * heap, word * obj){
+  Object * o = (Object*)obj;
+  --((Object*)(o->type))->refcount;
+  _object_delete(heap, obj);
+}
+
+
 word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, word * ops){
   word * ret = obj_array(heap, 8);
   word _tmp[sizeof(Object)+1];
@@ -101,7 +108,8 @@ word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, w
   while (*i < code_len){
     word * tok = object(heap, string_type, 1, code + *i, 1);
     if (in_set(ws, tok)){
-      _object_delete(heap, tok);
+      o_del(heap, tok);
+      //--((Object*)string_type)->refcount;
     }else if (in_set(ops, tok)){
       if (!obj_cmp((word*)tok, str_delim)){
 	--((Object*)tok)->size;
@@ -113,12 +121,12 @@ word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, w
 	  tok = object_append_word(heap, tok, code[*i]);
 	}
       }else if (!obj_cmp((word*)tok, blk_l_delim)){
-	_object_delete(heap, tok);
+	o_del(heap, tok);
 	++*i;
 	obj_array_append(heap, ret, _tokenize(heap, code, code_len, i, ws, ops));
 	continue;
       }else if (!obj_cmp((word*)tok, blk_r_delim)){
-	_object_delete(heap, tok);
+	o_del(heap, tok);
 	++*i;
 	return ret;
       }
@@ -136,7 +144,7 @@ word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, w
 
       word * b = str_to_num(heap, tok);
       if (b){
-	_object_delete(heap, tok);
+	o_del(heap, tok);
 	tok = b;
       }
       obj_array_append(heap, ret, tok);
@@ -267,8 +275,11 @@ word * def_fn(word * heap, word * val, word * ns){
 
 
 word * name_fn(word * heap, word * val, word * ns){
+  word * key = obj_array_idx(val, 0);
   word * res = obj_array_idx(val, 1);
-  set_add_str_key(heap, ns, obj_array_idx(val, 0), res);
+  word * kv_pair = set_remove_str_key(heap, ns, key);
+  object_delete(heap, kv_pair);
+  set_add_str_key(heap, ns, key, res);
   return res;
 }
 

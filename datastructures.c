@@ -128,17 +128,12 @@ void _object_delete(word * heap, word * obj){
   gc_free(heap, obj + 1);
 }
 
-//TODO
+
 void object_delete(word * heap, word * obj){
   Object *o = (Object *)obj;
   if (!o){return;}
 
   word * type = (word*)o->type;
-  /* if (!obj_cmp(type, function_type)){ */
-  /*   --(o->refcount); */
-  /*   word n_freed = collect_obj(heap, obj); */
-  /*   if (!n_freed){return;} */
-  /* }else  */
   if (--(o->refcount)){
     return;
   }else{
@@ -1228,7 +1223,10 @@ word * str_to_num(word * heap, word * num){
     if ('f' >= chr && chr >= 'a') {offset = 'a'-10;}
     else if ('F' >= chr && chr >= 'A'){offset = 'A'-10;}
     else if ('9' >= chr && chr >= '0'){offset = '0';}
-    else {_object_delete(heap, (word*)final_num); return 0;}
+    else {
+      --((Object*)num_type)->refcount;
+      _object_delete(heap, (word*)final_num); return 0;
+    }
     c <<= 4;
     c |= (chr - offset);
   }
