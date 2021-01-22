@@ -345,9 +345,11 @@ word sweep(word * heap, word * obj){
       decrease_refcs((word*)arr->contents[i]);
       ret += sweep(heap, (word*)arr->contents[i]);
     }
-    void _object_delete(word * heap, word * arr);
-    set_remove(heap, gc_set, (word*)arr + 1, &avl_basic_cmp);
-    _object_delete(heap, (word*)arr);
+    word * arr_mem = set_remove(heap, gc_set, (word*)arr + 1, &avl_basic_cmp);
+    free(heap, arr_mem);
+    --gc_num_alloced;
+    /* void _object_delete(word * heap, word * arr); */
+    /* _object_delete(heap, (word*)arr); */
   }
   object_delete(heap, type);
   free(heap, mem);
@@ -390,11 +392,7 @@ void gc_collect(word * heap, word * gc_set){
       }
     }
     free(heap, q);
-
     sweep(heap, data);
-
-    //check_gc();
-    //print_uint(0xdeadbeef, 16, 0);
   }
   free(heap, q);
 }

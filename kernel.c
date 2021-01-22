@@ -364,7 +364,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   extern word * gc_set;
   init_types();
-  ((Object*)gc_set)->type = set_type;
+  ((Object*)gc_set)->type = (word)set_type;
   word * machine_info = 0;//init_machine(ImageHandle, SystemTable);
 
   extern word true_num_alloced;
@@ -381,7 +381,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   extern word check_gc();
   //check_gc();
   //print_uint(obj, 16, 0);nl(1);
-  rec_obj_print(obj);nl(1);
+  //rec_obj_print(obj);nl(1);
   array_delete(global_heap_start, kernel_src);
   //print_avl(global_heap_start[3], 0, 2);
   print_uint(true_num_alloced, 16, 0);nl(1);
@@ -390,10 +390,13 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /* extern word alloc_buf[2048]; */
   /* for (word i = 0; i < 2048-3; ++i){ */
   /*   word * val = (alloc_buf + 3)[i]; */
-  /*   if (val){ */
-  /*     print_uint(val, 16, 0);nl(1); */
-  /*     //print_uint(((Object*)(val - 1))->refcount, 16, 0);spc(1); */
-  /*     void obj_print(word * obj); */
+  /*   if (val && val != string_type + 1 && val != num_type + 1 && val != function_type + 1 && val != cell_type + 1 && val != array_type + 1 && val != set_type + 1){ */
+  /*     /\* print_uint(val, 16, 0);spc(1); *\/ */
+  /*     /\* //print_uint(((Object*)(val - 1))->refcount, 16, 0);spc(1); *\/ */
+  /*     /\* void obj_print(word * obj); *\/ */
+  /*     /\* for (word i = 0; i < 5;++i){ *\/ */
+  /*     /\* 	print_uint(val[i], 16, 0);spc(1); *\/ */
+  /*     /\* }nl(1); *\/ */
   /*     //obj_print(val); */
   
   /*     //free(global_heap_start, val); */

@@ -34,8 +34,6 @@ void fb_print_uint(uint32_t * loc, word val, word padding);
 // alloc.c
 extern const word hds_sz;
 extern word * gc_set;
-//extern const word refcount_mask;
-extern word garbage_collection;
 word get_mem_sz(word * addr); 
 word * init_heap(word * heap_start, word heap_sz);
 word * gc_init(word * heap);
