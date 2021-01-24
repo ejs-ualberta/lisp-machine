@@ -722,9 +722,11 @@ word * _avl_delete(word ** tr, word * node, word (*cmp)(word*, word*)){
 	direction = 1;
       }
     }
+    AVL_Node * l_child;
+    AVL_Node * r_child;
     switch(bf){
     case -2:
-      AVL_Node * l_child = (AVL_Node*)parent->left;
+      l_child = (AVL_Node*)parent->left;
       _bf = balance_factor((word*)l_child);
       if (_bf == 1){
         avl_rotate_lr(tr, (word*)parent);
@@ -742,7 +744,7 @@ word * _avl_delete(word ** tr, word * node, word (*cmp)(word*, word*)){
       set_balance_factor((word*)parent, bf);
       return ret;
     case 2:
-      AVL_Node * r_child = (AVL_Node*)parent->right;
+      r_child = (AVL_Node*)parent->right;
       _bf = balance_factor((word*)r_child);
       if (_bf == (word)-1){
         avl_rotate_rl(tr, (word*)parent);

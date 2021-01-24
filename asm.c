@@ -390,6 +390,7 @@ word run(word * bytecode, word * machine){
       args[i-1] = instr & arg_mask;
     }
 
+    sword sh;
     word x, y;
     switch (opcode){
     case acx:
@@ -432,7 +433,7 @@ word run(word * bytecode, word * machine){
       regs[args[0]] = ~(regs[args[1]] | regs[args[2]]);
       break;
     case shf:
-      sword sh = (sword)(regs[args[2]]);
+      sh = (sword)(regs[args[2]]);
       word shift = min(abs(sh), bits);
       if (sh < 0){
 	regs[args[0]] = regs[args[1]] << shift;
