@@ -1,7 +1,3 @@
-#include <stdint.h>
-#include <efi.h>
-#include <efilib.h>
-
 #include "config.h"
 
 
