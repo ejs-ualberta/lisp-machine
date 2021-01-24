@@ -25,7 +25,7 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
   Object * obj = (Object*)(mem - 1);
   obj->refcount = 0;
   obj->type = (word)type;
-  ((Object*)type)->refcount += 1;
+  if (type){((Object*)type)->refcount += 1;}
   obj->size = n_words;
   if (contents){
     for (word i = 0; i < n_words; ++i){

@@ -364,7 +364,11 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   extern word * gc_set;
   init_types();
+
+  //For gc_set
   ((Object*)gc_set)->type = (word)set_type;
+  ((Object*)set_type)->refcount += 1;
+
   word * machine_info = 0;//init_machine(ImageHandle, SystemTable);
 
   extern word true_num_alloced;
@@ -379,7 +383,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   //obj_print((word*)0x3fe00e50 - 1);nl(1);
   //print_avl(((Object*)gc_set)->contents[0], 0, 2);
   extern word check_gc();
-  check_gc();
+  //check_gc();
   //print_uint(obj, 16, 0);nl(1);
   rec_obj_print(obj);nl(1);
   array_delete(global_heap_start, kernel_src);

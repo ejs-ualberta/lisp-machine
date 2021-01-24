@@ -94,8 +94,6 @@ word * gc_init(word * heap){
   if (!mem){return (word*)0;}
   Object * obj = (Object*)(mem - 1);
   obj->refcount = 1;
-  obj->type = (word)set_type;
-  ((Object*)set_type)->refcount += 1;
   obj->size = size;
   obj->contents[0] = 0;
   gc_set = (word*)obj;
@@ -367,7 +365,7 @@ void _gc_collect(word *heap, word *tree, word * q) {
   _gc_collect(heap, (word*)left, q);
   _gc_collect(heap, (word*)right, q);
   Object * data = (Object*)((word*)node->data - 1);
-  if (!obj_cmp((word*)data->type, function_type)){
+  if (data->type && !obj_cmp((word*)data->type, function_type)){
     queue_push(heap, q, (word)data);
   }
 }
