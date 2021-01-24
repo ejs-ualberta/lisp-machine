@@ -86,7 +86,10 @@ void rec_obj_print(word * obj){
     print_cstr("Null ");
     return;
   }
-  if (!obj_cmp((word*)o->type, string_type)){
+  if (!o->type){
+    print_cstr("No Type ");
+    return;
+  }else if (!obj_cmp((word*)o->type, string_type)){
     if (!o->size){
       print_cstr("''");
     }
