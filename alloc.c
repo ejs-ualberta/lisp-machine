@@ -301,22 +301,22 @@ void decrease_refcs(word *obj) {
 }
 
 
-word sweep_tr(word * heap, word * tree) {
-  word sweep(word * heap, word * obj);
+word sweep_tr(word * heap, word * tree, word * q) {
+  word sweep(word * heap, word * obj, word * q);
   if (!tree){return 0;}
   AVL_Node * node = (AVL_Node*)tree;
   AVL_Node * left = (AVL_Node*)node->left;
   AVL_Node * right = (AVL_Node*)node->right;
   decrease_refcs((word*)node->data);
-  word ret = sweep(heap, (word*)node->data);
+  word ret = sweep(heap, (word*)node->data, q);
   free(heap, (word*)node);
-  ret += sweep_tr(heap, (word*)left);
-  ret += sweep_tr(heap, (word*)right);
+  ret += sweep_tr(heap, (word*)left, q);
+  ret += sweep_tr(heap, (word*)right, q);
   return ret;
 }
 
 
-word sweep(word * heap, word * obj){
+word sweep(word * heap, word * obj, word * q){
   Object * o = (Object*)obj;
   if (!o || !visited(obj)){return 0;}
 
@@ -326,32 +326,33 @@ word sweep(word * heap, word * obj){
   if (!node){return 0;}
 
   word ret = 0;
-  word * mem = set_remove(heap, gc_set, obj+1, &avl_basic_cmp);
+  word * mem = (word*)obj + 1;
+  avl_delete(heap, tr, (word)mem, &avl_basic_cmp);
+  queue_push(heap, q, (word)obj);
   word * type = (word*)o->type;
   if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){
     ret = 1;
   }else if (!obj_cmp(type, set_type)){
-    ret += sweep_tr(heap, (word*)o->contents[0]);
+    ret += sweep_tr(heap, (word*)o->contents[0], q);
   }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){
     for (word i = 0; i < o->size; ++i){
       decrease_refcs((word*)o->contents[i]);
-      ret += sweep(heap, (word*)o->contents[i]);
+      ret += sweep(heap, (word*)o->contents[i], q);
     }
   }else if (!obj_cmp(type, array_type)){
     Object * arr = (Object*)o->contents[0];
     for (word i = 0; i < arr->size; ++i){
       decrease_refcs((word*)arr->contents[i]);
-      ret += sweep(heap, (word*)arr->contents[i]);
+      ret += sweep(heap, (word*)arr->contents[i], q);
     }
-    word * arr_mem = set_remove(heap, gc_set, (word*)arr + 1, &avl_basic_cmp);
-    free(heap, arr_mem);
-    --gc_num_alloced;
+
+    word * arr_mem = (word*)arr + 1;
+    avl_delete(heap, tr, (word)arr_mem, &avl_basic_cmp);
+    queue_push(heap, q, (word)arr);
     /* void _object_delete(word * heap, word * arr); */
     /* _object_delete(heap, (word*)arr); */
   }
-  object_delete(heap, type);
-  free(heap, mem);
-  --gc_num_alloced;
+
   ret += 1;
   return ret;
 }
@@ -389,8 +390,13 @@ void gc_collect(word * heap, word * gc_set){
 	mark_tc(heap, obj, 0);
       }
     }
+    sweep(heap, data, q);
+    while ((obj = (word*)queue_pop(heap, q))){
+      object_delete(heap, (word*)((Object*)obj)->type);
+      free(heap, (word*)obj + 1);
+      --gc_num_alloced;
+    }
     free(heap, q);
-    sweep(heap, data);
   }
   free(heap, q);
 }
