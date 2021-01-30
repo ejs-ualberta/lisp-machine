@@ -2,5 +2,4 @@
 |>[#T ~>[[v1 v2][:v1]]]
 |>[#F ~>[[v1 v2][:v2]]]
 |>[if ~>[[cond exp1 exp2][:>[:>[:pair :exp1 :exp2] :cond]]]]
-|>[#F :>[:>[:if :#T :#F :#T] True False]]
-:#F
+:>[:>[:if :#T :#F :#T] True False]

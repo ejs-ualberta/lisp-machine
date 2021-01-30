@@ -255,7 +255,11 @@ word * call_fn(word * heap, word * args, word * ns){
     for (word i = 0; i < a_n_len; ++i){
       set_add_str_key(heap, tmp_ns, obj_array_idx(arg_names, i), obj_array_idx(args, i+1));
     }
+
+    ++((Object*)tmp_fn)->refcount;
     word * result = eval_fn(heap, exp, tmp_ns);
+    --((Object*)tmp_fn)->refcount;
+	
     ++((Object*)result)->refcount;
     word len = obj_array_size(result);
     if (len){
@@ -263,6 +267,7 @@ word * call_fn(word * heap, word * args, word * ns){
       set_obj_array_idx(result, len - 1, (word*)0);
     }else{ret = (word*)0;}
     object_delete(heap, result);
+    gc_collect(heap, gc_set);
     --((Object*)ret)->refcount;
   }
   return ret;
