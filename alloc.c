@@ -348,6 +348,7 @@ word sweep(word * heap, word * obj, word * q){
 
     word * arr_mem = (word*)arr + 1;
     avl_delete(heap, tr, (word)arr_mem, &avl_basic_cmp);
+    //free(heap, arr_mem);
     queue_push(heap, q, (word)arr);
     /* void _object_delete(word * heap, word * arr); */
     /* _object_delete(heap, (word*)arr); */
