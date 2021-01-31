@@ -336,12 +336,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /* } */
 
 
-  dt_ptr old_idt;
-  sidt((word*)&old_idt);
-  idt_entry * idt = (idt_entry*)old_idt.lower;
-  for (word i = 0; i < old_idt.limit; ++i){
-    patch_idt_entry(idt, i, (word)int_routine);
-  }
+  /* dt_ptr old_idt; */
+  /* sidt((word*)&old_idt); */
+  /* idt_entry * idt = (idt_entry*)old_idt.lower; */
+  /* for (word i = 0; i < old_idt.limit; ++i){ */
+  /*   patch_idt_entry(idt, i, (word)int_routine); */
+  /* } */
   //asm("int $0x80");
   //fb_print_uint(fb_start + 100, (*(word*)(idt + 0x80)), 0);
   //fb_print_uint(fb_start + 550, (*(word*)(idt)), 0);
