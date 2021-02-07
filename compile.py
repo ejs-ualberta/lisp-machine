@@ -1,5 +1,20 @@
 labels = dict()
 
+
+def to_hex(val):
+    if val < 0:
+        return "-" + hex(val)[3:]
+    else:
+        return hex(val)[2:]
+
+
+def mangle(s):
+    # If the name of a function also matches a hex value, it must be converted back to a string.
+    if (type(s) == int):
+        s = to_hex(s)
+    return "_" + s
+
+
 def tok(in_str, i):
     ws = {'\t', '\n', ' '}
     prims = {'[', ']'}
@@ -29,13 +44,6 @@ def tok(in_str, i):
 def tokenize(in_str):
     i, tr = tok(in_str, 0)
     return tr
-
-
-def to_hex(val):
-    if val < 0:
-        return "-" + hex(val)[3:]
-    else:
-        return hex(val)[2:]
 
 
 def compile_int(val):
@@ -91,16 +99,17 @@ def compile_function(ast, idx, env):
     n = len(ast[1])
     for i in range(n):
         env[ast[1][i]] = i - n - 1
-    labels[ast[0]] = ""
-    buf = ast[0] + "\n"
+    m = mangle(ast[0])
+    labels[m] = ""
+    buf = m + "\n"
     buf += "str r19 r18 1\n" + "ads r18 r18 1\n" + "ads r19 r18 0\n"
     i = 2
     while i < len(ast):
         buf += compile_expr(ast[i], 0, env)
         i += 1
     buf +=  "sbs r18 r18 1\n" + "ldr r19 r18 1\n" + "jnc r1F r1B 0\n"
-    labels[ast[0]] = buf
-    return "ads r1d r1a " + ast[0] + "\n"
+    labels[m] = buf
+    return "ads r1d r1a " + m + "\n"
 
 
 def compile_call(ast, idx, env):
@@ -152,7 +161,8 @@ def compile_call(ast, idx, env):
     elif ast[0] == ":":
         ret = compile_function(ast[1:], idx, env.copy())
         return ret
-    elif ast[0] in labels:
+    else:
+        m = mangle(ast[0])
         idx += 1
         ret = ""
         for arg in ast[1:]:
@@ -163,12 +173,10 @@ def compile_call(ast, idx, env):
         ret += "ads r18 r18 " + offset + "\n" # set stack ptr
         ret += "str r1b r18 0\n" # save link register on stack
         ret += "ads r1b r1e 2\n" # put pc + 2 in the link register
-        ret += "jnc r1F r1a " + ast[0] + "\n"
+        ret += "jnc r1F r1a " + m + "\n"
         ret += "ldr r1b r18 0 \n" # restore link register
         ret += "sbs r18 r18 " + offset + "\n" # restore stack pointer
         return ret
-    else:
-        pass
 
 
 def compile_expr(ast, idx, env):
@@ -218,7 +226,8 @@ def comp(string):
 #c1 = "[: fn [x y] [+ x y]] [: fn1 [x y] [+ [fn x y] 1]] [: fn2 [x] x] [fn2 [fn 1 2]]"
 #c1 = "[: fact [x] [if [> x 1] [* x [fact [- x 1]]] 1]] [fact 10]"
 #c1 = "[. 10000 deadbeef] [, ffff 1]"
-c1 = "[: fact [i] [let [[x 1]] [loop [> i 0] [set x [* x i]] [set i [- i 1]]] x]] [fact 5]"
+#c1 = "[: fact [i] [let [[x 1]] [loop [> i 0] [set x [* x i]] [set i [- i 1]]] x]] [fact 5]"
 #c1 = "[let [[x 5]] [set x [- x 1]] x]"
+c1 = "[: f[x][g x]] [: g[x][if [> x 0] [+ 1 [f [- x 1]]] 0]] [g 20]"
 code = comp(c1)
 print(code)
