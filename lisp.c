@@ -258,6 +258,7 @@ word * call_fn(word * heap, word * args, word * ns){
 
     ++((Object*)tmp_fn)->refcount;
     word * result = eval_fn(heap, exp, tmp_ns);
+    gc_collect(heap, gc_set);
     --((Object*)tmp_fn)->refcount;
 	
     ++((Object*)result)->refcount;
@@ -289,7 +290,6 @@ word * name_fn(word * heap, word * val, word * ns){
 
 
 word * eval_fn(word * heap, word * exp, word * ns){
-  gc_collect(heap, gc_set);
   word * type = (word*)(((Object*)exp)->type);
   if (obj_cmp(type, array_type)){
     return exp;

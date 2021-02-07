@@ -47,12 +47,11 @@ def compile_gt(ast, idx, env):
     if len(ast) != 3:
         return buf
     buf += "str r0 r19 " + to_hex(idx + 1) + '\n'
-    buf += compile_expr(ast[1], idx + 1, env.copy())
+    buf += compile_expr(ast[2], idx + 1, env.copy())
     buf += "str r1d r19 " + to_hex(idx + 2) + '\n'
-    buf += compile_expr(ast[2], idx + 2, env.copy())
+    buf += compile_expr(ast[1], idx + 2, env.copy())
     buf += "ldr r0 r19 " + to_hex(idx + 2) + '\n'
     buf += "sbs r1d r0 r1d\n"
-    buf += "nor r1d r1d r1d\n"
     buf += "shf r1d r1d 3f\n"
     buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
     return buf
@@ -95,14 +94,17 @@ def compile_function(ast, idx, env):
     labels[ast[0]] = ""
     buf = ast[0] + "\n"
     buf += "str r19 r18 1\n" + "ads r18 r18 1\n" + "ads r19 r18 0\n"
-    buf += compile_expr(ast[2], 0, env)
+    i = 2
+    while i < len(ast):
+        buf += compile_expr(ast[i], 0, env)
+        i += 1
     buf +=  "sbs r18 r18 1\n" + "ldr r19 r18 1\n" + "jnc r1F r1B 0\n"
     labels[ast[0]] = buf
     return "ads r1d r1a " + ast[0] + "\n"
 
 
 def compile_call(ast, idx, env):
-    prims = {'+':"ads", '-':"sbs", '&':"and", '|':"orr", '^':"xor", '~':"nor", '><':"shf", '*':'mls', '/':"dvs"}
+    prims = {'+':"ads", '-':"sbs", '&':"and", '|':"orr", '^':"xor", '~':"nor", '><':"shf", '*':"mls", 'mul':"mlu", '/':"dvs", 'div':"dvu"}
     sp_prims = {">":compile_gt, ".":compile_store, ",":compile_load}
     if ast[0] in prims:
         return builtin_op(prims[ast[0]], ast, idx, env.copy())
@@ -110,11 +112,21 @@ def compile_call(ast, idx, env):
         return sp_prims[ast[0]](ast, idx, env.copy())
     elif ast[0] == "let":
         ret = ""
+        if len(ast) < 3:
+            return ret
         for pair in ast[1]:
             idx += 1
             env[pair[0]] = idx
             ret += compile_expr(pair[1], idx, env.copy()) + "str r1d r19 " + to_hex(idx) + "\n"
-        ret += compile_expr(ast[2], idx, env.copy())
+        i = 2
+        while i < len(ast):
+            ret += compile_expr(ast[i], idx, env.copy())
+            i += 1
+        return ret
+    elif ast[0] == "set":
+        ret = ""
+        if ast[1] in env:
+            ret += compile_expr(ast[2], idx, env.copy()) + "str r1d r19 " + to_hex(env[ast[1]]) + "\n"
         return ret
     elif ast[0] == "if":
         exp2 = compile_expr(ast[2], idx, env.copy())
@@ -124,6 +136,18 @@ def compile_call(ast, idx, env):
         ret += exp2
         ret += "jnc r1f r1e " + to_hex(1 + exp3.count('\n')) + '\n'
         ret += exp3
+        return ret
+    elif ast[0] == "loop": # Always returns 1
+        exp2 = "" #exp2 = compile_expr(ast[2], idx, env.copy())
+        i = 2
+        while i < len(ast):
+            exp2 += compile_expr(ast[i], idx, env.copy())
+            i += 1
+        ret = compile_expr(ast[1], idx, env.copy())
+        rn = ret.count('\n')
+        ret += "nor r1d r1d r1d\n" + "and r1d r1d 1\n" + "jnc r1d r1e " + to_hex(2 + exp2.count('\n')) + '\n'
+        ret += exp2
+        ret += "jnc r1f r1e -" + to_hex(3 + exp2.count('\n') + rn) + '\n'
         return ret
     elif ast[0] == ":":
         ret = compile_function(ast[1:], idx, env.copy())
@@ -192,7 +216,9 @@ def comp(string):
         
 #c1 = "[let [[y [: fn [x] x]] [z [fn y]]] z]"
 #c1 = "[: fn [x y] [+ x y]] [: fn1 [x y] [+ [fn x y] 1]] [: fn2 [x] x] [fn2 [fn 1 2]]"
-c1 = "[: fact [x] [if [> x 1] [* x [fact [- x 1]]] 1]] [fact 10]"
+#c1 = "[: fact [x] [if [> x 1] [* x [fact [- x 1]]] 1]] [fact 10]"
 #c1 = "[. 10000 deadbeef] [, ffff 1]"
+c1 = "[: fact [i] [let [[x 1]] [loop [> i 0] [set x [* x i]] [set i [- i 1]]] x]] [fact 5]"
+#c1 = "[let [[x 5]] [set x [- x 1]] x]"
 code = comp(c1)
 print(code)

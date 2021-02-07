@@ -1,5 +1,63 @@
-|>[pair ~>[[v1 v2][~>[[cond][:>[:cond :v1 :v2]]]]]]
-|>[#T ~>[[v1 v2][:v1]]]
-|>[#F ~>[[v1 v2][:v2]]]
-|>[if ~>[[cond exp1 exp2][:>[:>[:pair :exp1 :exp2] :cond]]]]
-:>[:>[:if :#T :#F :#T] True False]
+ads r1A r1E 0
+ads r18 r1A STACK:
+ads r19 r18 0
+ads r1b r1E 2
+jnc r1f r1a MAIN:
+xor r1F r1F r1F
+
+fact
+str r19 r18 1
+ads r18 r18 1
+ads r19 r18 0
+xor r1d r1d r1d
+ads r1d r1d 1
+str r1d r19 1
+str r0 r19 2
+xor r1d r1d r1d
+ads r1d r1d 0
+str r1d r19 3
+ldr r1d r19 -2
+ldr r0 r19 3
+sbs r1d r0 r1d
+shf r1d r1d 3f
+ldr r0 r19 2
+nor r1d r1d r1d
+and r1d r1d 1
+jnc r1d r1e 13
+str r0 r19 2
+ldr r1d r19 1
+str r1d r19 3
+ldr r1d r19 -2
+ldr r0 r19 3
+mls r1d r0 r1d
+ldr r0 r19 2
+str r1d r19 1
+str r0 r19 2
+ldr r1d r19 -2
+str r1d r19 3
+xor r1d r1d r1d
+ads r1d r1d 1
+ldr r0 r19 3
+sbs r1d r0 r1d
+ldr r0 r19 2
+str r1d r19 -2
+jnc r1f r1e -1d
+ldr r1d r19 1
+sbs r18 r18 1
+ldr r19 r18 1
+jnc r1F r1B 0
+
+MAIN:
+ads r1d r1a fact
+xor r1d r1d r1d
+ads r1d r1d 10
+str r1d r19 1
+ads r18 r18 2
+str r1b r18 0
+ads r1b r1e 2
+jnc r1F r1a fact
+ldr r1b r18 0 
+sbs r18 r18 2
+jnc r1f r1b 0
+
+STACK: 0

@@ -367,54 +367,54 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   word * machine_info = 0;//init_machine(ImageHandle, SystemTable);
 
-  extern word true_num_alloced;
-  extern word gc_num_alloced;
-  //print_avl(global_heap_start[3], 0, 2);
-  print_uint(true_num_alloced, 16, 0);nl(1);
-  print_uint(gc_num_alloced, 16, 0);nl(1);
-  print_avl(global_heap_start[3], 0, 2);
-  extern word * gc_set;
-  extern word * run_prog(word * heap, word * machine, word * code, word code_sz);
-  Object * obj = (Object*)run_prog(global_heap_start, machine_info, kernel_src, array_len(kernel_src));
-  //obj_print((word*)0x3fe00e50 - 1);nl(1);
-  //print_avl(((Object*)gc_set)->contents[0], 0, 2);
-  extern word check_gc();
-  //check_gc();
-  //print_uint(obj, 16, 0);nl(1);
-  rec_obj_print(obj);nl(1);
-  array_delete(global_heap_start, kernel_src);
-  //print_avl(global_heap_start[3], 0, 2);
-  print_uint(true_num_alloced, 16, 0);nl(1);
-  print_uint(gc_num_alloced, 16, 0);nl(1);
-  //print_avl(global_heap_start[3], 0, 2);
-  /* extern word alloc_buf[2048]; */
-  /* for (word i = 0; i < 2048-3; ++i){ */
-  /*   word * val = (alloc_buf + 3)[i]; */
-  /*   if (val && val != string_type + 1 && val != num_type + 1 && val != function_type + 1 && val != cell_type + 1 && val != array_type + 1 && val != set_type + 1){ */
-  /*     /\* print_uint(val, 16, 0);spc(1); *\/ */
-  /*     /\* //print_uint(((Object*)(val - 1))->refcount, 16, 0);spc(1); *\/ */
-  /*     /\* void obj_print(word * obj); *\/ */
-  /*     /\* for (word i = 0; i < 5;++i){ *\/ */
-  /*     /\* 	print_uint(val[i], 16, 0);spc(1); *\/ */
-  /*     /\* }nl(1); *\/ */
-  /*     //obj_print(val); */
+  /* extern word true_num_alloced; */
+  /* extern word gc_num_alloced; */
+  /* //print_avl(global_heap_start[3], 0, 2); */
+  /* print_uint(true_num_alloced, 16, 0);nl(1); */
+  /* print_uint(gc_num_alloced, 16, 0);nl(1); */
+  /* print_avl(global_heap_start[3], 0, 2); */
+  /* extern word * gc_set; */
+  /* extern word * run_prog(word * heap, word * machine, word * code, word code_sz); */
+  /* Object * obj = (Object*)run_prog(global_heap_start, machine_info, kernel_src, array_len(kernel_src)); */
+  /* //obj_print((word*)0x3fe00e50 - 1);nl(1); */
+  /* //print_avl(((Object*)gc_set)->contents[0], 0, 2); */
+  /* extern word check_gc(); */
+  /* //check_gc(); */
+  /* //print_uint(obj, 16, 0);nl(1); */
+  /* rec_obj_print(obj);nl(1); */
+  /* array_delete(global_heap_start, kernel_src); */
+  /* //print_avl(global_heap_start[3], 0, 2); */
+  /* print_uint(true_num_alloced, 16, 0);nl(1); */
+  /* print_uint(gc_num_alloced, 16, 0);nl(1); */
+  /* //print_avl(global_heap_start[3], 0, 2); */
+  /* /\* extern word alloc_buf[2048]; *\/ */
+  /* /\* for (word i = 0; i < 2048-3; ++i){ *\/ */
+  /* /\*   word * val = (alloc_buf + 3)[i]; *\/ */
+  /* /\*   if (val && val != string_type + 1 && val != num_type + 1 && val != function_type + 1 && val != cell_type + 1 && val != array_type + 1 && val != set_type + 1){ *\/ */
+  /* /\*     /\\* print_uint(val, 16, 0);spc(1); *\\/ *\/ */
+  /* /\*     /\\* //print_uint(((Object*)(val - 1))->refcount, 16, 0);spc(1); *\\/ *\/ */
+  /* /\*     /\\* void obj_print(word * obj); *\\/ *\/ */
+  /* /\*     /\\* for (word i = 0; i < 5;++i){ *\\/ *\/ */
+  /* /\*     /\\* 	print_uint(val[i], 16, 0);spc(1); *\\/ *\/ */
+  /* /\*     /\\* }nl(1); *\\/ *\/ */
+  /* /\*     //obj_print(val); *\/ */
   
-  /*     //free(global_heap_start, val); */
-  /*   } */
-  /* } */
-  /* word * n1 = ((Object*)(obj->contents[0]))->contents[0]; */
-  /* word * n2 = ((Object*)(obj->contents[0]))->contents[1]; */
-  /* nl(1);rec_obj_print(num_add(global_heap_start, n1, n2));nl(1); */
-  /* print_avl(global_heap_start[3], 0, 2); */
-  /* print_uint(num_alloced, 16, 0);nl(1); */
-  /* Object * cts = object(global_heap_start, string_type, 1, "a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 1); */
-  /* Object * arr = obj_array(global_heap_start, 1); */
-  /* ++ arr->refcount; */
-  /* obj_array_append(global_heap_start, arr, cts); */
-  /* object_delete(global_heap_start, arr); */
-  /* print_uint(num_alloced, 16, 0);nl(1); */
-  /* print_avl(global_heap_start[3], 0, 2); */
-  while(1){};
+  /* /\*     //free(global_heap_start, val); *\/ */
+  /* /\*   } *\/ */
+  /* /\* } *\/ */
+  /* /\* word * n1 = ((Object*)(obj->contents[0]))->contents[0]; *\/ */
+  /* /\* word * n2 = ((Object*)(obj->contents[0]))->contents[1]; *\/ */
+  /* /\* nl(1);rec_obj_print(num_add(global_heap_start, n1, n2));nl(1); *\/ */
+  /* /\* print_avl(global_heap_start[3], 0, 2); *\/ */
+  /* /\* print_uint(num_alloced, 16, 0);nl(1); *\/ */
+  /* /\* Object * cts = object(global_heap_start, string_type, 1, "a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 1); *\/ */
+  /* /\* Object * arr = obj_array(global_heap_start, 1); *\/ */
+  /* /\* ++ arr->refcount; *\/ */
+  /* /\* obj_array_append(global_heap_start, arr, cts); *\/ */
+  /* /\* object_delete(global_heap_start, arr); *\/ */
+  /* /\* print_uint(num_alloced, 16, 0);nl(1); *\/ */
+  /* /\* print_avl(global_heap_start[3], 0, 2); *\/ */
+  /* while(1){}; */
 
 
   word * bytecode = compile(global_heap_start, kernel_src, array_len(kernel_src));
