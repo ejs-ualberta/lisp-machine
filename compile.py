@@ -161,6 +161,14 @@ def compile_call(ast, idx, env):
     elif ast[0] == ":":
         ret = compile_function(ast[1:], idx, env.copy())
         return ret
+    elif ast[0] == "asm":
+        ret = []
+        for item in ast[1]:
+            if type(item) == int:
+                item = to_hex(item)
+            ret.append(item)
+        ret = " ".join(ret) + "\n"
+        return ret
     else:
         m = mangle(ast[0])
         idx += 1
@@ -228,6 +236,7 @@ def comp(string):
 #c1 = "[. 10000 deadbeef] [, ffff 1]"
 #c1 = "[: fact [i] [let [[x 1]] [loop [> i 0] [set x [* x i]] [set i [- i 1]]] x]] [fact 5]"
 #c1 = "[let [[x 5]] [set x [- x 1]] x]"
-c1 = "[: f[x][g x]] [: g[x][if [> x 0] [+ 1 [f [- x 1]]] 0]] [g 20]"
+#c1 = "[: f[x][g x]] [: g[x][if [> x 0] [+ 1 [f [- x 1]]] 0]] [g 20]"
+c1 = "[: f [x y] [asm [ldr r1d r19 -3]]] [f deadbeef deadc0de]"
 code = comp(c1)
 print(code)
