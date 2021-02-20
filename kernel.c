@@ -326,12 +326,16 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   // Doesn't work
   /* EFI_GUID pp_guid = {0x31878c87,0xb75,0x11d5, {0x9a,0x4f,0x00,0x90,0x27,0x3f,0xc1,0x4d}}; */
-  /* EFI_SIMPLE_POINTER_PROTOCOL mouse; */
+  /* EFI_SIMPLE_POINTER_PROTOCOL * mouse; */
   /* EFI_SIMPLE_POINTER_STATE m_state; */
   /* Status = ST->BootServices->LocateProtocol(&pp_guid, NULL, (void**)&mouse); */
-  /* if (EFI_ERROR(Status)){return Status;} */
+  /* if (EFI_ERROR(Status)){ */
+  /*   ST->ConOut->OutputString(ST->ConOut, L"Mouse Error.\r\n"); */
+  /*   return Status; */
+  /* } */
+  /* Status = mouse->Reset(mouse, 1); */
   /* while (1){ */
-  /*   Status = mouse.GetState(&mouse, &m_state); */
+  /*   Status = mouse->GetState(mouse, &m_state); */
   /*   *(fb_start + m_state.RelativeMovementY * b_hres + m_state.RelativeMovementX) = 0x00FFFFFF; */
   /* } */
 
