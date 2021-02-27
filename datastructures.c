@@ -1284,3 +1284,9 @@ void print_num(word * num){
     }
   }
 }
+
+
+word * word_to_num(word * heap, word w){
+  word buf[2] = {w, 0};
+  return object(heap, num_type, 2, buf, 2);
+}

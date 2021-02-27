@@ -28,65 +28,37 @@ word * null = (word *)0;
 word * ops;
 
 
-word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
+word * init_machine(word * heap, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   word * handle = (word*)&ImageHandle;
-  word * machine = set(global_heap_start);
-  ((Object*)machine)->refcount += 1;
+  word * machine = set(heap);
 
-  word st_key[7] = {'s', 'y', 's', '_', 't', 'a', 'b'};
-  word * st_str = object(global_heap_start, string_type, 7, st_key, 7);
-  word * st_val = object(global_heap_start, num_type, 1, (word*)SystemTable, 1);
-  set_add_str_key(global_heap_start, machine, st_str, st_val);
+  word st_key[2] = {'s', 't'};
+  word * st_str = object(heap, string_type, 2, st_key, 2);
+  set_add_str_key(heap, machine, st_str, word_to_num(heap, (word)SystemTable));
 
   word img_key[3] = {'i', 'm', 'g'};
-  word * img_str = object(global_heap_start, string_type, 3, img_key, 3);
-  word * img_val = object(global_heap_start, num_type, 1, (word*)&handle, 1);
-  set_add_str_key(global_heap_start, machine, img_str, img_val);
+  word * img_str = object(heap, string_type, 3, img_key, 3);
+  set_add_str_key(heap, machine, img_str, word_to_num(heap, (word)&ImageHandle));
 
-  /* word types_key[5] = {'t', 'y', 'p', 'e', 's'}; */
-  /* word * types_str = object(global_heap_start, string_type, 5, types_key, 5); */
-  /* word * types_set = set(global_heap_start); */
-  /* set_add_str_key(global_heap_start, types_set, string_type, string_type); */
-  /* set_add_str_key(global_heap_start, types_set, num_type, num_type); */
-  /* set_add_str_key(global_heap_start, types_set, array_type, array_type); */
-  /* set_add_str_key(global_heap_start, types_set, set_type, set_type); */
-  /* set_add_str_key(global_heap_start, types_set, function_type, function_type); */
-  /* set_add_str_key(global_heap_start, types_set, cell_type, cell_type); */
-  /* /\* set_add_str_key(global_heap_start, types_set, native_type, native_type); *\/ */
-  /* set_add_str_key(global_heap_start, machine, types_str, types_set); */
+  word fb_base_key[4] = {'f', 'b', 'u', 'f'};
+  word * fb_base_str = object(heap, string_type, 4, fb_base_key, 4);
+  set_add_str_key(heap, machine, fb_base_str, word_to_num(heap, (word)fb_start));
 
-  word pc_key[2] = {'p', 'c'};
-  word * pc_str = object(global_heap_start, string_type, 2, pc_key, 2);
-  word * pc_set = set(global_heap_start);
-  set_add_str_key(global_heap_start, machine, pc_str, pc_set);
-
-  word fb_set_key[2] = {'f', 'b'};
-  word * fb_set_str = object(global_heap_start, string_type, 2, fb_set_key, 2);
-  word * fb_set = set(global_heap_start);
-  set_add_str_key(global_heap_start, pc_set, fb_set_str, fb_set);
-  word fb_base_key[4] = {'b', 'a', 's', 'e'};
-  word * fb_base_str = object(global_heap_start, string_type, 4, fb_base_key, 4);
-  word * fb_base_val = object(global_heap_start, num_type, 1, (word*)&fb_start, 1);
   word fb_hres_key[4] = {'h', 'r', 'e', 's'};
-  word * fb_hres_str = object(global_heap_start, string_type, 4, fb_hres_key, 4);
-  word * fb_hres_val = object(global_heap_start, num_type, 1, (word*)&b_hres, 1);
-  word fb_vres_key[4] = {'v', 'r', 'e', 's'};
-  word * fb_vres_str = object(global_heap_start, string_type, 4, fb_vres_key, 4);
-  word * fb_vres_val = object(global_heap_start, num_type, 1, (word*)&b_vres, 1);
-  set_add_str_key(global_heap_start, fb_set, fb_base_str, fb_base_val);
-  set_add_str_key(global_heap_start, fb_set, fb_hres_str, fb_hres_val);
-  set_add_str_key(global_heap_start, fb_set, fb_vres_str, fb_vres_val);
+  word * fb_hres_str = object(heap, string_type, 4, fb_hres_key, 4);
+  set_add_str_key(heap, machine, fb_hres_str, word_to_num(heap, (word)b_hres));
 
-  word mem_key[3] = {'m', 'e', 'm'};
-  word * mem_set_str = object(global_heap_start, string_type, 3, mem_key, 3);
-  word * mem_set = set(global_heap_start);
-  set_add_str_key(global_heap_start, pc_set, mem_set_str, mem_set);
-  word * mem_base = object(global_heap_start, num_type, 1, (word*)&global_heap_start, 1);
-  set_add_str_key(global_heap_start, mem_set, fb_base_str, mem_base);
-  word mem_sz_key[3] = {'s', 'z'};
-  word * mem_sz_str = object(global_heap_start, string_type, 2, mem_sz_key, 2);
-  word * mem_sz = object(global_heap_start, num_type, 1, (word*)&global_heap_size, 1);
-  set_add_str_key(global_heap_start, mem_set, mem_sz_str, mem_sz);
+  word fb_vres_key[4] = {'v', 'r', 'e', 's'};
+  word * fb_vres_str = object(heap, string_type, 4, fb_vres_key, 4);
+  set_add_str_key(heap, machine, fb_vres_str, word_to_num(heap, (word)b_vres));
+
+  word mem_base_key[3] = {'m', 'e', 'm'};
+  word * mem_base_str = object(heap, string_type, 3, mem_base_key, 3);
+  set_add_str_key(heap, machine, mem_base_str, word_to_num(heap, (word)heap));
+
+  word mem_sz_key[6] = {'m', 'e', 'm', '_', 's', 'z'};
+  word * mem_sz_str = object(heap, string_type, 6, mem_sz_key, 6);
+  set_add_str_key(heap, machine, mem_sz_str, word_to_num(heap, global_heap_size));
 
   return machine;
 }
@@ -153,6 +125,7 @@ word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, w
   }
   return ret;
 }
+
 
 word * tokenize(word * heap, word * code, word code_len){
   word set_cmp(word * node1, word * node2);
@@ -327,9 +300,6 @@ word * run_prog(word * heap, word * machine, word * code, word code_sz){
   word _self[4] = {'s', 'e', 'l', 'f'};
   self = object(heap, string_type, 4, _self, 4);
   ++((Object*)self)->refcount;
-  word _machine[4] = {'m', 'a', 'c', 'h'};
-  word * mach_str = object(heap, string_type, 4, _machine, 4);
-  ++((Object*)mach_str)->refcount;
 
   //TODO: make these global constants.
   word _def[1] = {'~'};
@@ -355,7 +325,16 @@ word * run_prog(word * heap, word * machine, word * code, word code_sz){
   set_add_str_key(heap, ops, name, object(heap, num_type, 1, (word*)&nf, 1));
   word * exp = tokenize(heap, code, code_sz);
   word * empty_lst = obj_array(heap, 0);
-  word * main = new_fn(heap, (word*)0, empty_lst, exp);
+
+  //word * main = new_fn(heap, (word*)0, empty_lst, exp);
+  word fn_init[3] = {(word)machine, (word)empty_lst, (word)empty_lst};
+  ++((Object*)machine)->refcount;
+  ((Object*)empty_lst)->refcount += 2;
+  word * global = object(heap, function_type, 3, fn_init, 3);
+  //set_add_str_key(heap, machine, self, global);
+
+  word * main = new_fn(heap, global, empty_lst, exp);
+
   word * args = obj_array(heap, 1);
   word * expr = obj_array(heap, 1);
   ++((Object*)expr)->refcount;

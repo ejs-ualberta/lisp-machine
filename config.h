@@ -146,6 +146,7 @@ void num_negate(word * num);
 word * num_add(word * heap, word * num1, word * num2);
 word * str_to_num(word * heap, word * num);
 void print_num(word * num);
+word * word_to_num(word * heap, word w);
 
 
 //util.c
@@ -167,5 +168,5 @@ EFI_STATUS get_char(EFI_INPUT_KEY * input_key);
 
 
 //lisp.c
-word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable);
+word * init_machine(word * heap, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable);
 word * tokenize(word * heap, word * code, word code_len);
