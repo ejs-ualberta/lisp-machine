@@ -28,6 +28,20 @@ word * null = (word *)0;
 word * ops;
 
 
+word * b_plus(word * heap, word * args){
+  Object * a_obj = (Object*)args;
+  return num_add(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
+}
+
+
+word * b_minus(word * heap, word * args){
+  Object * a_obj = (Object*)args;
+  word * arg2 = obj_array_idx(args, 2);
+  num_negate(arg2);
+  return num_add(heap, (word*)obj_array_idx(args, 1), arg2);
+}
+
+
 word * init_machine(word * heap, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   word * handle = (word*)&ImageHandle;
   word * machine = set(heap);
@@ -59,6 +73,15 @@ word * init_machine(word * heap, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * Syst
   word mem_sz_key[6] = {'m', 'e', 'm', '_', 's', 'z'};
   word * mem_sz_str = object(heap, string_type, 6, mem_sz_key, 6);
   set_add_str_key(heap, machine, mem_sz_str, word_to_num(heap, global_heap_size));
+
+  word * empty_list = obj_array(heap, 0);
+  word b_plus_key[1] = {'+'};
+  word * b_plus_str = object(heap, string_type, 1, b_plus_key, 1);
+  set_add_str_key(heap, machine, b_plus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_plus)));
+
+  word b_minus_key[1] = {'-'};
+  word * b_minus_str = object(heap, string_type, 1, b_minus_key, 1);
+  set_add_str_key(heap, machine, b_minus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_minus)));
 
   return machine;
 }
@@ -212,15 +235,20 @@ word * get_val(word * obj, word * ns){
 
 
 word * call_fn(word * heap, word * args, word * ns){
-  if (obj_cmp((word*)((Object*)args)->type, array_type)){
+  word * slf = obj_array_idx(args, 0);
+  word * exp = (word*)((Object*)slf)->contents[2];
+  if (!obj_cmp((word*)((Object*)exp)->type, num_type)){
+    word fptr = ((Object*)exp)->contents[0];
+    return ((word*(*)(word*, word*))fptr)(heap, args);
+  }else if (obj_cmp((word*)((Object*)args)->type, array_type)){
     return get_val(args, ns);
   }
-  word * slf = obj_array_idx(args, 0);
+
   word * _ns = (word*)((Object*)slf)->contents[0];
   word * arg_names = (word*)((Object*)slf)->contents[1];
-  word * exp = (word*)((Object*)slf)->contents[2];
   word a_n_len = obj_array_size(arg_names);
   word * ret = 0;
+
   if (obj_array_size(args) == a_n_len + 1){
     word * _sup = set_get_value(_ns, sup);
     word * tmp_fn = new_fn(heap, _sup, arg_names, exp);

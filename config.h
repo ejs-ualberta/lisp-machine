@@ -97,6 +97,7 @@ typedef struct link{
 word * object(word * heap, word * type, word size, word * contents, word n_words);
 word * object_append_word(word * heap, word * obj, word data);
 word * object_append(word * heap, word * obj, word * data);
+word * object_expand(word * heap, word * obj, word new_sz);
 void obj_print(word * obj);
 void rec_obj_print(word * obj);
 void object_delete(word * heap, word * obj);
@@ -144,6 +145,7 @@ word queue_last(word * heap, word * queue);
 word queue_pop(word * heap, word * queue);
 void num_negate(word * num);
 word * num_add(word * heap, word * num1, word * num2);
+word * num_shift_left(word * heap, word * num, word shf);
 word * str_to_num(word * heap, word * num);
 void print_num(word * num);
 word * word_to_num(word * heap, word w);

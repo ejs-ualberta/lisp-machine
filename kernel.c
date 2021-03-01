@@ -387,6 +387,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   //check_gc();
   //print_uint(obj, 16, 0);nl(1);
   rec_obj_print(obj);nl(1);
+  rec_obj_print(num_shift_left(global_heap_start, obj, 16));nl(1);
   array_delete(global_heap_start, kernel_src);
   //print_avl(global_heap_start[3], 0, 2);
   print_uint(true_num_alloced, 16, 0);nl(1);

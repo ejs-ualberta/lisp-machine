@@ -62,6 +62,14 @@ word * object_append(word * heap, word * obj, word * data){
 }
 
 
+word * object_expand(word * heap, word * obj, word new_sz){
+  word old_sz = ((Object*)obj)->size;
+  word * new = gc_realloc(heap, obj+1, obj_sz + new_sz) - 1;
+  if (new && new_sz < old_sz){((Object*)new)->size = new_sz;}
+  return new;
+}
+
+
 void obj_print(word * obj){
   Object * o = (Object*)obj;
   Object * type = (Object*)o->type;
@@ -189,7 +197,7 @@ void set_obj_array_idx(word * arr, word idx, word * val){
 }
 
 
-void obj_array_delete(word * heap, word * obj) {
+void obj_array_delete(word * heap, word * obj){
   Object * o = (Object*)obj;
   Object * arr = (Object*)(o->contents[0]);
   _object_delete(heap, obj);
@@ -1163,8 +1171,8 @@ word * num_add(word * heap, word * num1, word * num2){
   word n1_sgn = n1->contents[n1_sz-1] >> (sizeof(word)*8 - 1);
   word n2_sgn = n2->contents[n2_sz-1] >> (sizeof(word)*8 - 1);
 
-  // Create an obj of size n1_sz because n1 is now the "longest" number.
-  Object * result = (Object*)object(heap, num_type, n1_sz, 0, 0);
+  // Create an obj of size n1_sz + 1 because n1 is now the "longest" number and may have to add a sign word.
+  Object * result = (Object*)object(heap, num_type, n1_sz + 1, 0, 0);
   result->size = n1_sz;
   word carry = 0;
   for (word i = 0; i < n2_sz; ++i){
@@ -1189,14 +1197,54 @@ word * num_add(word * heap, word * num1, word * num2){
     result = (Object*)object_append_word(heap, (word*)result, 0);
   }else{
     word last = result->contents[n1_sz-1];
-    for (word i = n1_sz-1; i > 2; --i){
-      if (result->contents[i-1] == last){
+    for (word i = n1_sz-1; i > 2 && (result->contents[i-1] == last); --i){
   	--result->size;
-      }
     }
   }
 
   return (word*)result;
+}
+
+
+word * num_shift_left(word * heap, word * num, word shf){
+  Object * n = ((Object*)num);
+  word n_sz = n->size;
+  word n_sgn = n->contents[n_sz-1];
+  word div = shf / (sizeof(word)*8);
+  word mod = shf % (sizeof(word)*8);
+  // If mod need an extra word + another for possibly adding a sign word
+  word min_sz = n_sz + div + 2*!!mod;
+  if (n->max_sz < min_sz && !(n = (Object*)object_expand(heap, num, min_sz))){
+    return 0;
+  }else{
+    // Subtract !!mod so can append a sign word if mod
+    n->size = min_sz - !!mod;
+  }
+
+  if (mod){
+    word op_mod = ((sizeof(word)*8)-mod);
+    for (word i = n_sz-1; i > 0; --i){
+      n->contents[i+div] = (n->contents[i-1] >> op_mod) | (n->contents[i] << mod);
+    }
+    n->contents[div] = n->contents[0] << mod;
+    for (word i = 0; i < div; ++i){n->contents[i] = 0;}
+
+    word last = n_sz + div;
+    n->contents[last] = n_sgn >> op_mod;
+    if (n_sgn){
+      n->contents[last+1] = 0;
+      ++n->size;
+    }
+    for (word i = n->size-1; i > 2 && !(n->contents[i-1]); --i){--n->size;}
+    if (!n->contents[n->size-1] && n->contents[n->size-2] == (word)-1){--n->size;}
+  }else if (div){
+    for (word i = n_sz; i; --i){
+      word i1 = i-1;
+      n->contents[i1+div] = n->contents[i1];
+      n->contents[i1] = 0;
+    }
+  }
+  return (word*)n;
 }
 
 
