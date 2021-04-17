@@ -1197,8 +1197,8 @@ word * num_add(word * heap, word * num1, word * num2){
     result = (Object*)object_append_word(heap, (word*)result, 0);
   }else{
     word last = result->contents[n1_sz-1];
-    for (word i = n1_sz-1; i > 2 && (result->contents[i-1] == last); --i){
-  	--result->size;
+    for (word i = n1_sz-1; i > 1 && (result->contents[i-1] == last); --i){
+      --result->size;
     }
   }
 
@@ -1227,7 +1227,6 @@ word * num_shift_left(word * heap, word * num, word shf){
       n->contents[i+div] = (n->contents[i-1] >> op_mod) | (n->contents[i] << mod);
     }
     n->contents[div] = n->contents[0] << mod;
-    for (word i = 0; i < div; ++i){n->contents[i] = 0;}
 
     word last = n_sz + div;
     n->contents[last] = n_sgn >> op_mod;
@@ -1235,17 +1234,429 @@ word * num_shift_left(word * heap, word * num, word shf){
       n->contents[last+1] = 0;
       ++n->size;
     }
-    for (word i = n->size-1; i > 2 && !(n->contents[i-1]); --i){--n->size;}
-    if (!n->contents[n->size-1] && n->contents[n->size-2] == (word)-1){--n->size;}
+    for (word i = n->size-1; i > 1 && !(n->contents[i-1]); --i){--n->size;}
+    if (n->size > 2 && !n->contents[n->size-1] && n->contents[n->size-2] == (word)-1){--n->size;}
   }else if (div){
     for (word i = n_sz; i; --i){
       word i1 = i-1;
       n->contents[i1+div] = n->contents[i1];
-      n->contents[i1] = 0;
     }
+  }
+  for (word i = 0; i < div; ++i){n->contents[i] = 0;}
+  return (word*)n;
+}
+
+
+word * num_shift_right(word * heap, word * num, word shf){
+  Object * n = ((Object*)num);
+  word n_sz = n->size;
+  word n_sgn = n->contents[n_sz-1];
+  word div = shf / (sizeof(word)*8);
+  word mod = shf % (sizeof(word)*8);
+  if (shf >= n_sz*sizeof(word)*8){
+    n->contents[0] = 0;
+    n->contents[1] = 0;
+    n->size = 2;
+    return (word*)n;
+  }
+  if (mod){
+    word op_mod = ((sizeof(word)*8)-mod);
+    for (word i = 0; i < n_sz - div - 1; ++i){
+      n->contents[i] = (n->contents[i+div] >> mod) | (n->contents[i+div+1] << op_mod);
+    }
+
+    n->size -= div;
+    n->contents[n->size-1] = n_sgn >> mod;
+    // num gets deformed if sgn or div == n_sz - 1
+    if (n_sgn || div >= n_sz - 1){
+      n = (Object*)object_append_word(heap, (word*)n, 0);
+    }
+
+    // Get rid of unnecessary zeroes
+    for (word i = n->size-1; i > 1 && !(n->contents[i-1]); --i){--n->size;}
+    // Check if number should be negative
+    if (n->size > 2 && !n->contents[n->size-1] && n->contents[n->size-2] == (word)-1){--n->size;}
+  }else if (div){
+    for (word i = 0; i < n_sz-div; ++i){
+      n->contents[i] = n->contents[i+div];
+    }
+    n->size -= div;
   }
   return (word*)n;
 }
+
+
+// TODO: improve this to check bit length, then if that fails iterate backwards through the numbers like in num_div
+word num_le(word * heap, word * num1, word * num2){
+  num_negate(num2);
+  word * num3 = num_add(heap, num1, num2);
+  num_negate(num2);
+
+  Object * n3 = ((Object*)num3);
+  word n_sgn = n3->contents[n3->size-1];
+  ++n3->refcount;
+  object_delete(heap, num3);
+  return n_sgn;
+}
+
+
+word * num_shift(word * heap, word * num1, word * num2){
+  Object * n1 = (Object*)num1;
+  Object * n2 = (Object*)num2;
+  word n2_sz = n2->size;
+  word n2_sgn = n2->contents[n2_sz-1];
+
+  // If shift is zero return
+  if (n2_sz <= 2 && !n2->contents[0]){
+    return num1;
+  }else if (n2_sz > 2){
+    // Return if num2 is too large
+    return num1;
+  }
+
+  word * result = 0;
+  if (n2_sgn){
+    num_negate(num2);
+    word sz = n1->size + n2->contents[0]/(sizeof(word)*8) + 1 + 1;
+    result = object(heap, num_type, sz, n1->contents, n1->size);
+    num_shift_left(heap, result, n2->contents[0]);
+    num_negate(num2);
+  }else{
+    word sz = n1->size + 1;
+    result = object(heap, num_type, sz, n1->contents, n1->size);
+    num_shift_right(heap, result, n2->contents[0]);
+  }
+  
+  return result;
+}
+
+
+word * num_and(word * heap, word * num1, word * num2){
+  Object * n1 = (Object*)num1;
+  Object * n2 = (Object*)num2;
+  word sz = umin(n1->size, n2->size);
+  Object * result = (Object*)object(heap, num_type, sz + 1, n1->contents, sz);
+  for (word i = 0; i < sz; ++i){
+    result->contents[i] &= n2->contents[i];
+  }
+  result = (Object*)object_append_word(heap, (word*)result, 0);
+  for (word i = result->size-1; i > 1 && !(result->contents[i-1]); --i){--result->size;}
+  if (result->size > 2 && !result->contents[result->size-1] && result->contents[result->size-2] == (word)-1){--result->size;}
+  return (word*)result;
+}
+
+
+word * num_or(word * heap, word * num1, word * num2){
+  Object * n1 = (Object*)num1;
+  Object * n2 = (Object*)num2;
+  if (n1->size < n2->size){
+    Object * tmp = n1;
+    n2 = n1;
+    n1 = tmp;
+  }
+  Object * result = (Object*)object(heap, num_type, n1->size, n1->contents, n1->size);
+  for (word i = 0; i < n2->size; ++i){
+    result->contents[i] |= n2->contents[i];
+  }
+  return (word*)result;
+}
+
+
+word * num_xor(word * heap, word * num1, word * num2){
+  Object * n1 = (Object*)num1;
+  Object * n2 = (Object*)num2;
+  if (n1->size < n2->size){
+    Object * tmp = n1;
+    n2 = n1;
+    n1 = tmp;
+  }
+  Object * result = (Object*)object(heap, num_type, n1->size, n1->contents, n1->size);
+  for (word i = 0; i < n2->size; ++i){
+    result->contents[i] ^= n2->contents[i];
+  }
+  return (word*)result;
+}
+
+
+word * num_not(word * heap, word * num){
+  Object * n = (Object*)num;
+  Object * result = (Object*)object(heap, num_type, n->size, n->contents, n->size);
+  for (word i = 0; i < n->size; ++i){
+    result->contents[i] = ~result->contents[i];
+  }
+  return (word*)result;
+}
+
+
+word * num_ldr(word * heap, word * num){
+  Object * n = (Object*)num;
+  return word_to_num(heap, *((word*)n->contents[0]));
+}
+
+
+void num_store(word * num1, word * num2){
+  Object * n1 = (Object*)num1;
+  Object * n2 = (Object*)num2;
+  for (word i = 0; i < n2->size - 1; ++i){
+    *((word*)n1->contents[i]) = n2->contents[i];
+  }
+}
+
+
+word * num_mul(word * heap, word * num1, word * num2){
+  Object * n1 = (Object*)num1;
+  Object * n2 = (Object*)num2;
+
+  // Put the "longer" number last. 
+  if (n1->size > n2->size){
+    Object * tmp = n1;
+    n1 = n2;
+    n2 = tmp;
+  }
+
+  word n1_sz = n1->size;
+  word n2_sz = n2->size;
+  word res_sz = n1_sz + n2_sz - 1; // Only need one sign word, so subtract 1
+  word n1_sgn = n1->contents[n1_sz-1];
+  word n2_sgn = n2->contents[n2_sz-1];
+  word res_sgn = n1_sgn ^ n2_sgn;
+
+  if ((n1_sz == 2 && !n1->contents[0]) || (n1_sz == 2 && !n1->contents[0])){
+    word buf[2];
+    buf[0] = buf[1] = 0;
+    return object(heap, num_type, 2, buf, 2);
+  }
+
+  if (n1_sgn){num_negate((word*)n1);}
+  if (n2_sgn){num_negate((word*)n2);}
+
+  Object * result = (Object*)object(heap, num_type, res_sz, 0, 0);
+  result->size = res_sz;
+  for (word i = 0; i < res_sz; ++i){result->contents[i] = 0;}
+
+  for (word i = 0; i < n2_sz-1; ++i){
+    word n2_i = n2->contents[i];
+    word nsh = 0;
+    while(n2_i){
+      if (n2_i & 1){
+	word * ptr = result->contents + i;
+	word carry = 0;
+	word n1_prev = 0;
+	// Always adding two positive integers, where the accumulator is the strictly smaller number.
+	for (word j = 0; j < n1_sz; ++j, ++ptr){
+	  word n1_curr = n1->contents[j];
+	  carry = adc(*ptr, carry, ptr);
+	  carry += adc(*ptr, (nsh ? (n1_prev >> (sizeof(word)*8 - nsh)) : 0) | (n1_curr << nsh), ptr);
+	  n1_prev = n1_curr;
+	}
+      }
+      ++nsh;
+      n2_i >>= 1;
+    }
+  }
+
+  if (n1_sgn){num_negate((word*)n1);}
+  if (n2_sgn){num_negate((word*)n2);}
+  for (word i = res_sz - 1; i > 1 && !result->contents[i-1]; --i){--result->size;}
+  if (res_sgn){num_negate((word*)result);}
+  return (word *)result;
+}
+
+//TODO: find a place for this function and add it to config.h
+word nlz(word n) {
+  word idx = sizeof(word)*8 >> 1;
+  word sz = sizeof(word)*8 >> 2;
+  if (!n){return sizeof(word)*8;}
+  else if (n == 1){return sizeof(word)*8-1;}
+  while (sz){
+    word n_idx = n >> idx;
+    if (n_idx == 1){return sizeof(word)*8 - idx - 1;}
+    if (n_idx){
+      idx += sz;
+    }else{
+      idx -= sz;
+    }
+    sz >>= 1;
+  }
+  return sizeof(word)*8 - idx - 1;
+}
+
+
+word bit_length(word * num){
+  Object * n = (Object*)num;
+  word sz = n->contents[n->size-1] ? (n->size-1) : (n->size - 2);
+  word word_sz = sizeof(word)*8;
+  return (sz+1)*word_sz - nlz(n->contents[sz]);
+}
+
+
+word * num_div(word * heap, word * num1, word * num2){
+  Object * _n = (Object*)num1;
+  Object * d = (Object*)num2;
+  Object * n = (Object*)object(heap, num_type, _n->size, _n->contents, _n->size);
+  ++n->refcount;
+  word n_sgn = n->contents[n->size-1];
+  word d_sgn = d->contents[d->size-1];
+  word acc_sgn = n_sgn ^ d_sgn;
+
+  if (n_sgn){num_negate((word*)n);}
+  if (d_sgn){num_negate((word*)d);}
+
+  word nb = bit_length((word*)n);
+  word db = bit_length((word*)d);
+
+  // Return 0 if abs(n) < abs(d)
+  if (nb < db || !db){
+    goto error;
+  }else if (nb == db){
+    for (word i = n->size-1; i >= 0; --i){
+      if (d->contents[i] > n->contents[i]){
+	goto error;
+      }
+    }
+  }
+
+  Object * acc = (Object*)object(heap, num_type, n->size - d->size + 2, 0, 0);
+  acc->size = n->size - d->size + 2;
+  for (word i = 0; i < acc->size; ++i){acc->contents[i] = 0;}
+  word offset = nb-db-1;
+  Object * d_apx = (Object*)object(heap, num_type, n->size, d->contents, d->size);
+  ++d_apx->refcount;
+  Object * apx = (Object*)object(heap, num_type, n->size, 0, 0);
+  ++apx->refcount;
+  apx->contents[0] = 1;
+  apx->contents[1] = 0;
+  apx->size = 2;
+  apx = (Object*)num_shift_left(heap, (word*)apx, offset);
+  d_apx = (Object*)num_shift_left(heap, (word*)d_apx, offset);
+
+  while (1){
+    if (nb < db){goto end;}
+    else if (nb == db){
+      for (word i = n->size-1; i > 0; --i){
+	if (d->contents[i-1] > n->contents[i-1]){goto end;}
+      }
+      // return acc + 1
+      word carry = 1;
+      for (word i = 0; carry && i < acc->size; ++i){
+	carry = adc(acc->contents[i], carry, acc->contents + i);
+      }
+      goto end;
+    }
+
+    // Add apx to acc
+    word carry = 0;
+    for (word i = offset/(sizeof(word)*8); i < acc->size; ++i){
+      carry = adc(acc->contents[i], carry, acc->contents + i);
+      carry += adc(acc->contents[i], apx->contents[i], acc->contents + i);
+      if (!carry){break;}
+    }
+
+    // sub d_apx from n
+    carry = 1;
+    for (word i = 0; i < n->size-1; ++i){
+      carry = adc(n->contents[i], carry, n->contents + i);
+      word val = i > d_apx->size-1 ? (word)-1 : ~(d_apx->contents[i]);
+      carry += adc(n->contents[i], val, n->contents + i);
+    }
+    for (word i = n->size - 1; i > 1 && !n->contents[i-1]; --i){--n->size;}
+
+    nb = bit_length((word*)n);
+    word off = nb-db-1;
+    apx = (Object*)num_shift_right(heap, (word*)apx, offset - off);
+    d_apx = (Object*)num_shift_right(heap, (word*)d_apx, offset - off);
+    offset = off;
+  }
+
+ end:
+  for (word i = acc->size - 1; i > 1 && !acc->contents[i-1]; --i){--acc->size;}
+  if (d_sgn){num_negate((word*)d);}
+  if (acc_sgn){num_negate((word*)acc);}
+  object_delete(heap, (word*)n);
+  object_delete(heap, (word*)d_apx);
+  object_delete(heap, (word*)apx);
+  return (word*)acc;
+
+ error:
+  if (d_sgn){num_negate((word*)d);}
+  object_delete(heap, (word*)n);
+  return word_to_num(heap, 0);
+}
+
+
+/* word * num_div(word * heap, word * num1, word * num2){ */
+/*   Object * n1 = (Object*)num1; */
+/*   Object * n2 = (Object*)num2; */
+/*   word n1_sz = n1->size; */
+/*   word n2_sz = n2->size; */
+/*   word res_sz = n1_sz < n2_sz ? 2 : n1_sz - n2_sz + 2; */
+/*   word n1_sgn = n1->contents[n1_sz-1]; */
+/*   word n2_sgn = n2->contents[n2_sz-1]; */
+/*   word res_sgn = n1_sgn ^ n2_sgn; */
+
+/*   // Make both numbers positive */
+/*   if (n1_sgn){num_negate((word*)n1);} */
+/*   if (n2_sgn){num_negate((word*)n2);} */
+
+/*   // Return 0 when the numerator is zero, on division by 0, and when the abs value of the numerator is less than the abs value of the denominator. */
+/*   if ((n1_sz == 2 && !n1->contents[0]) || (n1_sz == 2 && !n1->contents[0]) || num_le(heap, num1, num2)){ */
+/*     word buf[2]; */
+/*     buf[0] = buf[1] = 0; */
+/*     // Return both numbers to their original states */
+/*     if (n1_sgn){num_negate((word*)n1);} */
+/*     if (n2_sgn){num_negate((word*)n2);} */
+/*     return object(heap, num_type, 2, buf, 2); */
+/*   } */
+
+/*   Object * result = (Object*)object(heap, num_type, res_sz, 0, 0); */
+/*   result->size = res_sz; */
+/*   for (word i = 0; i < res_sz; ++i){result->contents[i] = 0;} */
+
+/*   if (n1_sgn){num_negate((word*)n1);} */
+/*   if (n2_sgn){num_negate((word*)n2);} */
+/*   for (word i = res_sz - 1; i > 1 && !result->contents[i-1]; --i){--result->size;} */
+/*   if (res_sgn){num_negate((word*)result);} */
+/*   return (word *)result; */
+/* } */
+
+
+/* //TODO: For this make a version of add that mutates the obj passed in */
+/* void karatsuba_split_at(word *heap, word *num, word ** low, word ** high){ */
+/*   Object * n = (Object*)num; */
+/*   word l_sz = n->size * sizeof(word) * 4; */
+/*   Object * l = object(heap, num_type, l_sz, ); */
+/* } */
+
+
+/* word * karatsuba_mul_nat(word * heap, word * num1, word * num2, word){ */
+/*   // Do not use if one or both of the numbers is <= 0, use karatsuba_mul */
+/*   Object * n1 = (Object*)num1; */
+/*   Object * n2 = (Object*)num2; */
+/*   if ((n1->size <= 2 && n1->contents[0] < 2)){ */
+/*     return object(heap, num_type, n2->size, n2->contents, n2->size); */
+/*   }else if (n2->size <= 2 && n2->contents[0] < 2){ */
+/*     return object(heap, num_type, n1->size, n1->contents, n1->size); */
+/*   } */
+
+/*   word * low1; */
+/*   word * high1; */
+/*   karatsuba_split_at(heap, num1, &low1, &high1); */
+/*   word * low2; */
+/*   word * high2; */
+/*   karatsuba_split_at(heap, num2, &low2, &high2); */
+
+/*   word * lm = karatsuba_mul_nat(heap, low1, low2); */
+/*   word * lh1 = num_add(heap, low1, high1); */
+/*   word * lh2 = num_add(heap, low2, high2); */
+
+/*   object_delete(heap, low1); */
+/*   object_delete(heap, low2); */
+/*   object_delete(heap, high1); */
+/*   object_delete(heap, high2); */
+
+  
+/*   return */
+/* } */
 
 
 word * str_to_num(word * heap, word * num){

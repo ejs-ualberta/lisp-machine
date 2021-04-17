@@ -28,7 +28,7 @@ enum reg_aliases{
   fp,
   bp, // pgrm base ptr
   lr, // link reg
-  ir, // ivt register
+  ir, // exception return address
   rr, // result register, used for upper reg when multiplying/dividing.
   pc,
   sr, // status register (exec cont. bit, carry bits, etc)

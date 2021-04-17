@@ -2,12 +2,13 @@ CFLAGS='-target x86_64-unknown-windows
         -ffreestanding 
         -fshort-wchar 
         -mno-red-zone 
-        -I./gnu-efi/inc -I./gnu-efi/inc/x86_64 -I./gnu-efi/inc/protocol'
+        -I./gnu-efi/inc -I./gnu-efi/inc/x86_64 -I./gnu-efi/inc/protocol
+	-g -O0'
 LDFLAGS='-target x86_64-unknown-windows 
         -nostdlib 
         -Wl,-entry:efi_main 
         -Wl,-subsystem:efi_application 
-        -fuse-ld=lld-link'
+        -fuse-ld=lld-link -g -O0'
 
 clang $CFLAGS -c -o debug.o debug.c
 clang $CFLAGS -c -o util.o util.c
@@ -32,5 +33,5 @@ mkdir iso
 cp fat.img iso
 xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o os.iso iso
 rm -rf ./iso
-rm ./fat.img ./BOOTX64.EFI
-qemu-system-x86_64 -L /usr/share/ovmf -bios OVMF.fd -cdrom os.iso -m 1024M -d int #-monitor stdio #-full-screen -device VGA,edid=on,xres=1366,yres=768 # (For when qemu has edid support)
+rm ./fat.img #./BOOTX64.EFI
+qemu-system-x86_64 -L /usr/share/ovmf -bios OVMF.fd -cdrom os.iso -m 1024M -d int #-s -S #-monitor stdio #-full-screen -device VGA,edid=on,xres=1366,yres=768 # (For when qemu has edid support)

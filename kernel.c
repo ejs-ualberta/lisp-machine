@@ -1,7 +1,5 @@
 #include "config.h"
 
-extern int int_routine(void);
-
 
 //TODO: When creating the str instruction, make an argument for number of bits to store, or create some other method of storing only bytes.
 //Maybe read from addr, put byte in appropriate place, then atomic cmpxchng back.
@@ -18,6 +16,85 @@ UINTN b_hres = 0;
 UINTN b_vres = 0;
 
 
+typedef struct DT_PTR {
+  word limit : 16;
+  word lower : 48;
+  uint16_t upper;
+} __attribute__((__packed__)) dt_ptr;
+
+
+typedef struct GDT_ENTRY {
+  uint16_t limit_low;
+  uint16_t base_low;
+  uint8_t base_middle;
+  uint8_t access;
+  uint8_t granularity;
+  uint8_t base_high;
+} __attribute__((__packed__)) gdt_entry;
+
+
+typedef struct IDT_Entry {
+  uint16_t offset_1;
+  uint16_t selector;
+  uint8_t ist;
+  uint8_t type_attr;
+  uint16_t offset_2;
+  uint32_t offset_3;
+  uint32_t zero;
+} __attribute__ ((__packed__)) idt_entry;
+
+
+gdt_entry GDT[3];
+idt_entry IDT[256];
+
+
+void gdt_set_gate(word idx, uint32_t base, uint32_t limit, uint8_t access, uint8_t gran){
+	GDT[idx].base_low = (base & 0xFFFF);
+	GDT[idx].base_middle = (base >> 16) & 0xFF;
+	GDT[idx].base_high = (base >> 24) & 0xFF;
+	GDT[idx].limit_low = (limit & 0xFFFF);
+	GDT[idx].granularity = ((limit >> 16) & 0x0F);
+	GDT[idx].granularity |= (gran & 0xF0);
+	GDT[idx].access = access;
+}
+
+
+void lgdt(dt_ptr * ptr){
+  asm volatile("lgdtq %0"::"m"(*ptr));
+}
+
+
+void sidt(word * loc){
+  asm volatile("sidt %0"::"m"(*loc):"memory");
+}
+
+void lidt(dt_ptr * ptr){
+  asm volatile("lidtq %0"::"m"(*ptr));
+}
+
+
+void interrupt_handler(uint8_t irq){
+  fb_print_uint(fb_start, irq, 0);
+  static word col = 0xFF;
+  for (int i = 0; i < 1024; ++i){fb_start[i] = col;}
+  col += 0xFF;
+  //*(uint32_t*)(0xFEE00000 + 0xB0) = 0;
+  outb(0x20, 0x20);
+  outb(0xA0, 0x20); // If isr >= 8
+}
+
+
+void patch_idt_entry(idt_entry * IDT, word idx, word handler_addr){
+  IDT[idx].offset_1 = handler_addr & 0xffff;
+  IDT[idx].selector = 0x08;
+  IDT[idx].ist = 0;
+  IDT[idx].type_attr = 0x8E;
+  IDT[idx].offset_2 = (handler_addr >> 16) & 0xffff;
+  IDT[idx].offset_3 = (handler_addr >> 32);
+  IDT[idx].zero = 0;
+}
+
+
 typedef struct SDT_Header {
   uint8_t signature[4];
   uint32_t length;
@@ -28,13 +105,13 @@ typedef struct SDT_Header {
   uint32_t oem_revision;
   uint32_t creator_id;
   uint32_t creator_revision;
-} sdt_header;
+} __attribute__ ((__packed__)) sdt_header;
 
 
 struct XSDT {
   sdt_header header;
   word sdt_ptr[];
-};
+} __attribute__ ((__packed__));
 
 
 sdt_header * find_sdt(word * xsdt_ptr, uint8_t * sig){
@@ -48,48 +125,6 @@ sdt_header * find_sdt(word * xsdt_ptr, uint8_t * sig){
     }
   }
   return (sdt_header*)0;
-}
-
-
-typedef __attribute__((__packed__)) struct DT_PTR {
-  word limit : 16;
-  word lower : 48;
-  uint16_t upper;
-} dt_ptr;
-
-
-typedef __attribute__ ((__packed__)) struct IDT_Entry {
-  uint16_t offset_1;
-  uint16_t selector;
-  uint8_t ist;
-  uint8_t type_attr;
-  uint16_t offset_2;
-  uint32_t offset_3;
-  uint32_t zero;
-}idt_entry;
-
-
-void interrupt_handler(void){
-  for (int i = 0; i < 1024; ++i){fb_start[i] = 0x00FFFFFF;}
-  //*(uint32_t*)(0xFEE00000 + 0xB0) = 0;
-  outb(0x20, 0x20);
-  outb(0xA0, 0x20); // If isr >= 8
-}
-
-
-void patch_idt_entry(idt_entry * IDT, word idx, word handler_addr){
-  IDT[idx].offset_1 = handler_addr & 0xffff;
-  //IDT[idx].selector = 0x08;
-  //IDT[idx].ist = 0;
-  //IDT[idx].type_attr = 0x8E;
-  IDT[idx].offset_2 = (handler_addr >> 16) & 0xffff;
-  IDT[idx].offset_3 = (handler_addr >> 32);
-  //IDT[idx].zero = 0;
-}
-
-
-void sidt(word * loc){
-  asm volatile("sidt %0"::"m"(*loc):"memory");
 }
 
 
@@ -339,13 +374,26 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /*   *(fb_start + m_state.RelativeMovementY * b_hres + m_state.RelativeMovementX) = 0x00FFFFFF; */
   /* } */
 
+  /* dt_ptr new_gdt = {sizeof(gdt_entry) * 3 - 1, (word)GDT & ((word)-1 >> 16), (word)GDT >> 48}; */
+  /* gdt_set_gate(0, 0, 0, 0, 0); */
+  /* gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xAF); */
+  /* gdt_set_gate(2, 0, 0xFFFFFFFF, 0x93, 0xCF); */
+
+  /* extern void IRQ_0(void); */
 
   /* dt_ptr old_idt; */
   /* sidt((word*)&old_idt); */
   /* idt_entry * idt = (idt_entry*)old_idt.lower; */
   /* for (word i = 0; i < old_idt.limit; ++i){ */
-  /*   patch_idt_entry(idt, i, (word)int_routine); */
+  /*   patch_idt_entry(IDT, i, (word)IRQ_0); */
   /* } */
+  /* dt_ptr new_idt = {old_idt.limit, (word)IDT & ((word)-1 >> 16), (word)IDT >> 48}; */
+
+  /* asm volatile("cli"); */
+  /* lgdt(&new_gdt); */
+  /* lidt(&new_idt); */
+  /* asm volatile("sti"); */
+
   //asm("int $0x80");
   //fb_print_uint(fb_start + 100, (*(word*)(idt + 0x80)), 0);
   //fb_print_uint(fb_start + 550, (*(word*)(idt)), 0);
@@ -374,9 +422,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   extern word true_num_alloced;
   extern word gc_num_alloced;
   //print_avl(global_heap_start[3], 0, 2);
-  print_uint(true_num_alloced, 16, 0);nl(1);
-  print_uint(gc_num_alloced, 16, 0);nl(1);
-  print_avl(global_heap_start[3], 0, 2);
+  //print_uint(true_num_alloced, 16, 0);nl(1);
+  //print_uint(gc_num_alloced, 16, 0);nl(1);
+  //print_avl(global_heap_start[3], 0, 2);
   extern word check_gc();
   //check_gc();
   extern word * gc_set;
@@ -387,12 +435,17 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   //check_gc();
   //print_uint(obj, 16, 0);nl(1);
   rec_obj_print(obj);nl(1);
-  rec_obj_print(num_shift_left(global_heap_start, obj, 16));nl(1);
+  
+  /* word * shobj = num_shift_right(global_heap_start, obj, 16); */
+  /* rec_obj_print(shobj);nl(1); */
+  /* Object * sh_obj = ((Object*)shobj); */
+  /* print_uint(sh_obj->size, 16, 0);nl(1); */
+
   array_delete(global_heap_start, kernel_src);
-  //print_avl(global_heap_start[3], 0, 2);
+  //fb_print_uint(fb_start, true_num_alloced, 0);
+  print_avl(global_heap_start[3], 0, 2);
   print_uint(true_num_alloced, 16, 0);nl(1);
   print_uint(gc_num_alloced, 16, 0);nl(1);
-  //print_avl(global_heap_start[3], 0, 2);
   /* extern word alloc_buf[2048]; */
   /* for (word i = 0; i < 2048-3; ++i){ */
   /*   word * val = (alloc_buf + 3)[i]; */

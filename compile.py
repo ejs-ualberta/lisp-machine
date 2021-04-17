@@ -1,11 +1,15 @@
-labels = dict()
-
-
+num_regs = 32
+regs = ['sp', 'fp', 'bp', 'lr', 'ir', 'rr', 'pc', 'sr']
 def to_hex(val):
     if val < 0:
         return "-" + hex(val)[3:]
     else:
         return hex(val)[2:]
+
+regnums = {regs[len(regs) - i - 1]:'r' + to_hex(num_regs - i-1) for i in range(len(regs)-1, -1, -1)}
+#print(regnums)
+
+labels = dict()
 
 
 def mangle(s):

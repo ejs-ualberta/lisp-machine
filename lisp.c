@@ -28,17 +28,32 @@ word * null = (word *)0;
 word * ops;
 
 
+//TODO: make a version that takes more than two args (need a mutating version of add)
 word * b_plus(word * heap, word * args){
-  Object * a_obj = (Object*)args;
   return num_add(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
 }
 
 
 word * b_minus(word * heap, word * args){
-  Object * a_obj = (Object*)args;
   word * arg2 = obj_array_idx(args, 2);
   num_negate(arg2);
-  return num_add(heap, (word*)obj_array_idx(args, 1), arg2);
+  word * ret = num_add(heap, (word*)obj_array_idx(args, 1), arg2);
+  num_negate(arg2);
+  return ret;
+}
+
+word * b_shift(word * heap, word * args){
+  return num_shift(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
+}
+
+
+word * b_mul(word * heap, word * args){
+  return num_mul(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
+}
+
+
+word * b_div(word * heap, word * args){
+  return num_div(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
 }
 
 
@@ -82,6 +97,18 @@ word * init_machine(word * heap, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * Syst
   word b_minus_key[1] = {'-'};
   word * b_minus_str = object(heap, string_type, 1, b_minus_key, 1);
   set_add_str_key(heap, machine, b_minus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_minus)));
+
+  word b_shift_key[1] = {'^'};
+  word * b_shift_str = object(heap, string_type, 1, b_shift_key, 1);
+  set_add_str_key(heap, machine, b_shift_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_shift)));
+
+  word b_mul_key[1] = {'*'};
+  word * b_mul_str = object(heap, string_type, 1, b_mul_key, 1);
+  set_add_str_key(heap, machine, b_mul_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_mul)));
+
+  word b_div_key[1] = {'/'};
+  word * b_div_str = object(heap, string_type, 1, b_div_key, 1);
+  set_add_str_key(heap, machine, b_div_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_div)));
 
   return machine;
 }
