@@ -2,8 +2,7 @@
 
 //NOTE: Some of the datastructures here depend on the memory allocator leaving the size of the allocated memory just before the mem.
 
-// Note: Use black magic to get maximum size from the umds associated with the object when expanding; No sense consuming another word.
-// TODO: Refcount attributes, e.g. cyclic (also add in manual ability to deallocate or cycle check)
+// TODO: Refcount attributes, e.g. cyclic (also add in manual ability to deallocate or cycle check)?
 word set_keyfind_cmp(word * kvp, word * key);
 
 word * num_type;
@@ -68,11 +67,8 @@ word * object_append(word * heap, word * obj, word * data){
 
 word * object_expand(word * heap, word * obj, word new_sz){
   word old_sz = ((Object*)obj)->size;
-  word * new = realloc(heap, obj+1, obj_sz + new_sz) - 1;
-  if (new){
-    ((Object*)new)->max_sz = new_sz;
-    if (new_sz < old_sz){((Object*)new)->size = new_sz;}
-  }
+  word * new = gc_realloc(heap, obj+1, obj_sz + new_sz) - 1;
+  if (new && new_sz < old_sz){((Object*)new)->size = new_sz;}
   return new;
 }
 
