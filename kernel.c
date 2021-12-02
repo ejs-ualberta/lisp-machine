@@ -443,7 +443,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   array_delete(global_heap_start, kernel_src);
   //fb_print_uint(fb_start, true_num_alloced, 0);
-  print_avl(global_heap_start[3], 0, 2);
+  //print_avl(global_heap_start[3], 0, 2);
   print_uint(true_num_alloced, 16, 0);nl(1);
   print_uint(gc_num_alloced, 16, 0);nl(1);
   /* extern word alloc_buf[2048]; */

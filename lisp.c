@@ -61,63 +61,13 @@ word * init_machine(word * heap, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * Syst
   word * handle = (word*)&ImageHandle;
   word * machine = set(heap);
 
-  word st_key[2] = {'s', 't'};
-  word * st_str = object(heap, string_type, 2, st_key, 2);
-  set_add_str_key(heap, machine, st_str, word_to_num(heap, (word)SystemTable));
-
-  word img_key[3] = {'i', 'm', 'g'};
-  word * img_str = object(heap, string_type, 3, img_key, 3);
-  set_add_str_key(heap, machine, img_str, word_to_num(heap, (word)&ImageHandle));
-
-  word fb_base_key[4] = {'f', 'b', 'u', 'f'};
-  word * fb_base_str = object(heap, string_type, 4, fb_base_key, 4);
-  set_add_str_key(heap, machine, fb_base_str, word_to_num(heap, (word)fb_start));
-
-  word fb_hres_key[4] = {'h', 'r', 'e', 's'};
-  word * fb_hres_str = object(heap, string_type, 4, fb_hres_key, 4);
-  set_add_str_key(heap, machine, fb_hres_str, word_to_num(heap, (word)b_hres));
-
-  word fb_vres_key[4] = {'v', 'r', 'e', 's'};
-  word * fb_vres_str = object(heap, string_type, 4, fb_vres_key, 4);
-  set_add_str_key(heap, machine, fb_vres_str, word_to_num(heap, (word)b_vres));
-
-  word mem_base_key[3] = {'m', 'e', 'm'};
-  word * mem_base_str = object(heap, string_type, 3, mem_base_key, 3);
-  set_add_str_key(heap, machine, mem_base_str, word_to_num(heap, (word)heap));
-
-  word mem_sz_key[6] = {'m', 'e', 'm', '_', 's', 'z'};
-  word * mem_sz_str = object(heap, string_type, 6, mem_sz_key, 6);
-  set_add_str_key(heap, machine, mem_sz_str, word_to_num(heap, global_heap_size));
-
-  word * empty_list = obj_array(heap, 0);
-  word b_plus_key[1] = {'+'};
-  word * b_plus_str = object(heap, string_type, 1, b_plus_key, 1);
-  set_add_str_key(heap, machine, b_plus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_plus)));
-
-  word b_minus_key[1] = {'-'};
-  word * b_minus_str = object(heap, string_type, 1, b_minus_key, 1);
-  set_add_str_key(heap, machine, b_minus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_minus)));
-
-  word b_shift_key[1] = {'^'};
-  word * b_shift_str = object(heap, string_type, 1, b_shift_key, 1);
-  set_add_str_key(heap, machine, b_shift_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_shift)));
-
-  word b_mul_key[1] = {'*'};
-  word * b_mul_str = object(heap, string_type, 1, b_mul_key, 1);
-  set_add_str_key(heap, machine, b_mul_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_mul)));
-
-  word b_div_key[1] = {'/'};
-  word * b_div_str = object(heap, string_type, 1, b_div_key, 1);
-  set_add_str_key(heap, machine, b_div_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_div)));
-
   return machine;
 }
 
 
 void o_del(word * heap, word * obj){
-  Object * o = (Object*)obj;
-  --((Object*)(o->type))->refcount;
-  _object_delete(heap, obj);
+  ++((Object*)obj)->refcount;
+  object_delete(heap, obj);
 }
 
 
@@ -286,17 +236,17 @@ word * call_fn(word * heap, word * args, word * ns){
 
     ++((Object*)tmp_fn)->refcount;
     word * result = eval_fn(heap, exp, tmp_ns);
-    gc_collect(heap, gc_set);
+    ++((Object*)result)->refcount;
+    check_heap_capacity(heap);
     --((Object*)tmp_fn)->refcount;
 	
-    ++((Object*)result)->refcount;
     word len = obj_array_size(result);
     if (len){
       ret = obj_array_idx(result, len - 1);
       set_obj_array_idx(result, len - 1, (word*)0);
+      --((Object*)ret)->refcount;
     }else{ret = (word*)0;}
     object_delete(heap, result);
-    --((Object*)ret)->refcount;
   }
   return ret;
 }
@@ -504,3 +454,36 @@ word * run_prog(word * heap, word * machine, word * code, word code_sz){
 /* |>[#F ~>[[v1 v2][:v2]]] */
 /* |>[if ~>[[cond exp1 exp2][:>[:>[:pair :exp1 :exp2] :cond]]]] */
 /* :>[:>[:if :#F :#F :#T] True False] */
+
+/* |>[#T ~>[[v1] [~>[[v2] [:v1]]]]] */
+/* |>[#F ~>[[v1] [~>[[v2] [:v2]]]]] */
+/* |>[nil ~>[[x] [:#T]]] */
+/* |>[id ~>[[x] [:x]]] */
+/* |>[cons ~>[[v1 v2] [~>[[cond][:>[:>[:cond :v1] :v2]]]]]] */
+/* |>[car ~>[[lst] [:>[:lst :#T]]]] */
+/* |>[cdr ~>[[lst] [:>[:lst :#F]]]] */
+/* |>[sel ~>[[cond v1 v2] [:>[:>[:cons :v1 :v2] :cond]]]] */
+/* |>[if ~>[[cond v1 v2] [::>[:sel :cond v1 v2]]]] */
+/* |>[empty ~>[[l] [:>[:l ~>[[head] [~>[[tail] [:#F]]]]]]]] */
+/* |>[concat ~>[[l1 l2][ */
+/*     :>:>[:if  */
+/*         :>[:empty |>[x :>[:cdr :l1]]] */
+/*         [:id :>[:cons :>[:car :l1] :l2]] */
+/*         [:cons  */
+/*             :>[:car :l1] */
+/*             :>[:concat :x :l2]]]]]] */
+
+/* |>[plist ~>[[l][ */
+/*     >:>[:if  */
+/*         :>[:empty :l] */
+/*         [] */
+/*         [:>[:car :l] :>[:plist :>[:cdr :l]]]]]]] */
+
+/* |>[l1 :>[:cons 1 :nil]] */
+/* |>[l2 :>[:cons 2 :nil]] */
+/* |>[l3 :>[:cons 3 :l2]] */
+/* |>[loop ~>[[] [:>[:loop]]]] */
+/* |>[conc :>[:concat :l1 :l2]] */
+/* :>[:if :#F [:loop] [:id :conc]] */
+
+/* :>[:plist :>[:concat :l3 :l2]] */

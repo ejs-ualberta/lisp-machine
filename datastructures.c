@@ -9,6 +9,7 @@ word set_keyfind_cmp(word * kvp, word * key);
 word * num_type;
 word * string_type;
 word * array_type;
+word * subarray_type;
 word * set_type;
 word * function_type;
 word * cell_type;
@@ -19,10 +20,11 @@ word * cell_type;
 const word obj_sz = sizeof(Object)/sizeof(word);
 
 word * object(word * heap, word * type, word size, word * contents, word n_words){
+  Object * obj = (Object*)0;
   if (size < n_words){return (word*)0;}
   word * mem = gc_alloc(heap, size + obj_sz - 1);
   if (!mem){return (word*)0;}
-  Object * obj = (Object*)(mem - 1);
+  obj = (Object*)(mem - 1);
   obj->refcount = 0;
   obj->type = (word)type;
   if (type){((Object*)type)->refcount += 1;}
@@ -38,9 +40,10 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
 
 word * object_append_word(word * heap, word * obj, word data){
   Object * o = (Object*)obj;
+  if (!o){return 0;}
   word max_sz = o->max_sz - obj_sz;
   if (o->size >= max_sz){
-    o = (Object*)(gc_realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
+    o = (Object*)(gc_realloc(heap, obj+1, obj_sz + o->size + o->size/2 + 1) - 1);
     if (!o){return 0;}
   }
   o->contents[o->size++] = (word)data;
@@ -51,10 +54,11 @@ word * object_append_word(word * heap, word * obj, word data){
 word * object_append(word * heap, word * obj, word * data){
   Object * o = (Object*)obj;
   Object * d = (Object*)data;
+  if (!o || !d){return 0;}
   ++d->refcount;
   word max_sz = o->max_sz - obj_sz;
   if (o->size >= max_sz){
-    o = (Object*)(gc_realloc(heap, obj+1, obj_sz + max_sz + max_sz/2) - 1);
+    o = (Object*)(gc_realloc(heap, obj+1, obj_sz + o->size + o->size/2 + 1) - 1);
     if (!o){return 0;}
   }
   o->contents[o->size++] = (word)data;
@@ -64,8 +68,11 @@ word * object_append(word * heap, word * obj, word * data){
 
 word * object_expand(word * heap, word * obj, word new_sz){
   word old_sz = ((Object*)obj)->size;
-  word * new = gc_realloc(heap, obj+1, obj_sz + new_sz) - 1;
-  if (new && new_sz < old_sz){((Object*)new)->size = new_sz;}
+  word * new = realloc(heap, obj+1, obj_sz + new_sz) - 1;
+  if (new){
+    ((Object*)new)->max_sz = new_sz;
+    if (new_sz < old_sz){((Object*)new)->size = new_sz;}
+  }
   return new;
 }
 
@@ -105,10 +112,10 @@ void rec_obj_print(word * obj){
       print_cstr((char*)(o->contents) + i);
     }spc(1);
   }else if (!obj_cmp((word*)o->type, array_type)){
-    Object * o1 = (Object*)o->contents[0];
+    Object * obj = (Object*)o->contents[0];
     print_cstr("[");spc(1);
-    for (word i = 0; i < o1->size; ++i){
-      rec_obj_print((word*)o1->contents[i]);
+    for (word i = 0; i < obj->size; ++i){
+      rec_obj_print((word*)obj->contents[i]);
     }
     print_cstr("]");spc(1);
   }else if (!obj_cmp((word*)o->type, num_type)){
@@ -124,10 +131,16 @@ void rec_obj_print(word * obj){
     print_cstr(")");spc(1);
   }else if (!obj_cmp((word*)o->type, function_type)){
     //print_set((word*)o->contents[0]);
-    print_cstr("<");spc(1);
+    print_cstr("function [");spc(1);
     rec_obj_print((word*)o->contents[1]);
     rec_obj_print((word*)o->contents[2]);
-    print_cstr(">");spc(1);
+    print_cstr("]");spc(1);
+  }else if (!obj_cmp((word*)o->type, subarray_type)){
+    print_cstr("subarray [");spc(1);
+    for (word i = 0; i < o->size; ++i){
+      rec_obj_print((word*)o->contents[i]);
+    }
+    print_cstr("]");spc(1);
   }else{
     print_cstr("???");spc(1);
   }
@@ -166,7 +179,7 @@ void object_delete(word * heap, word * obj){
 
 
 word * obj_array(word * heap, word size){
-  word * arr = object(heap, (word*)0, size, (word*)0, 0);
+  word * arr = object(heap, subarray_type, size, (word*)0, 0);
   ++((Object*)arr)->refcount;
   word * ret = object(heap, array_type, 1, (word*)&arr, 1);
   return ret;
@@ -303,7 +316,11 @@ word balance_factor(word * nd){
   word bf = get_balance_factor(nd);
   //if (!bf){return 0;}
   //3 -> 0, 1 -> +1, 2 -> -1
-  return (bf/3) ? 0 : nat_pow(-1, (bf % 3) - 1);
+  //return (bf/3) ? 0 : nat_pow(-1, (bf % 3) - 1);
+  if (bf == 1){
+    return bf;
+  }
+  return (word)(bf - 3);
 }
 
 
@@ -395,6 +412,7 @@ void avl_merge(word ** tr, word * addr, word size){
 
 word * avl_find(word ** tr, word data, word (*cmp)(word*, word*)){
   AVL_Node * tree = (AVL_Node*)*tr;
+  if (!tree){return 0;}
   AVL_Node node = {0, 0, 0, data};
   for (word b = cmp((word*)tree, (word*)&node); b; b = cmp((word*)tree, (word*)&node)){
     switch (b){
@@ -865,6 +883,9 @@ void init_types(void){
   word arr_str[3] = {'a', 'r', 'r'};
   array_type = object(global_heap_start, string_type, 3, arr_str, 3);
   ++((Object *)array_type)->refcount;
+  word sar_str[3] = {'s', 'a', 'r'};
+  subarray_type = object(global_heap_start, string_type, 3, sar_str, 3);
+  ++((Object *)subarray_type)->refcount;
   word set_str[3] = {'s', 'e', 't'};
   set_type = object(global_heap_start, string_type, 3, set_str, 3);
   ++((Object *)set_type)->refcount;
