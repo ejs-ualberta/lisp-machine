@@ -61,6 +61,27 @@ word * init_machine(word * heap, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * Syst
   word * handle = (word*)&ImageHandle;
   word * machine = set(heap);
 
+  word * empty_list = obj_array(heap, 0);
+  word b_plus_key[1] = {'+'};
+  word * b_plus_str = object(heap, string_type, 1, b_plus_key, 1);
+  set_add_str_key(heap, machine, b_plus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_plus)));
+
+  word b_minus_key[1] = {'-'};
+  word * b_minus_str = object(heap, string_type, 1, b_minus_key, 1);
+  set_add_str_key(heap, machine, b_minus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_minus)));
+
+  word b_shift_key[1] = {'^'};
+  word * b_shift_str = object(heap, string_type, 1, b_shift_key, 1);
+  set_add_str_key(heap, machine, b_shift_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_shift)));
+
+  word b_mul_key[1] = {'*'};
+  word * b_mul_str = object(heap, string_type, 1, b_mul_key, 1);
+  set_add_str_key(heap, machine, b_mul_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_mul)));
+
+  word b_div_key[1] = {'/'};
+  word * b_div_str = object(heap, string_type, 1, b_div_key, 1);
+  set_add_str_key(heap, machine, b_div_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_div)));
+
   return machine;
 }
 
