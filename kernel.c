@@ -284,7 +284,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
 
   global_heap_size = (word)(conv_mem_sz) / sizeof(word) - hds_sz;
   global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word));
-  gc_init(global_heap_start);
   
   /* Open kernel code.*/
   EFI_FILE * Kernel;
@@ -410,17 +409,8 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   /* print_avl(((Object*)gc_set)->contents[0], 0, 2); */
   /* while(1); */
 
-  extern word * gc_set;
-  init_types();
-
-  //For gc_set
-  ((Object*)gc_set)->type = (word)set_type;
-  ((Object*)set_type)->refcount += 1;
-
   word * machine_info = init_machine(global_heap_start, ImageHandle, SystemTable);
 
-  extern word true_num_alloced;
-  extern word gc_num_alloced;
   //print_avl(global_heap_start[3], 0, 2);
   //print_uint(true_num_alloced, 16, 0);nl(1);
   //print_uint(gc_num_alloced, 16, 0);nl(1);
@@ -444,8 +434,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
   array_delete(global_heap_start, kernel_src);
   //fb_print_uint(fb_start, true_num_alloced, 0);
   //print_avl(global_heap_start[3], 0, 2);
-  print_uint(true_num_alloced, 16, 0);nl(1);
-  print_uint(gc_num_alloced, 16, 0);nl(1);
+  hds * heap = (hds*)global_heap_start;
+  print_uint(heap->true_num_alloced, 16, 0);nl(1);
+  print_uint(heap->gc_num_alloced, 16, 0);nl(1);
   /* extern word alloc_buf[2048]; */
   /* for (word i = 0; i < 2048-3; ++i){ */
   /*   word * val = (alloc_buf + 3)[i]; */

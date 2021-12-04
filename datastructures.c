@@ -868,7 +868,7 @@ word * check_balance_factors(word * tr){
 }
 
 
-void init_types(void){
+void init_types(word * global_heap_start){
   word str_str[3] = {'s', 't', 'r'};
   string_type = object(global_heap_start , (word*)0, 3, str_str, 3);
   ((Object *)string_type)->type = (word)string_type;

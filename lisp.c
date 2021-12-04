@@ -377,7 +377,7 @@ word * run_prog(word * heap, word * machine, word * code, word code_sz){
 
   object_delete(heap, expr); //main is in args
   object_delete(heap, ops);
-  gc_collect(heap, gc_set);
+  gc_collect(heap);
   return ret;
 }
 

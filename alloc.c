@@ -1,26 +1,9 @@
 #include "config.h"
 
-word true_num_alloced = 0;
-word gc_num_alloced = 0;
-word * gc_set;
-
 const word refcount_mask = (word)-1 >> (sizeof(word) * 4);
 const word visited_mask = (word)1 << (sizeof(word) * 8 - 1);
 
 /* word alloc_buf[2048] = {2048, 0, 1, 0}; */
-
-typedef struct used_mem_datastructure{
-  word mem_sz;
-  word mem[];
-} umds;
-
-typedef struct heap_datastructure{
-  word heap_end;
-  word words_used;
-  word prev;
-  word next;
-  word fmds_ptr;
-} hds;
 
 const word umds_sz = sizeof(umds)/sizeof(word);
 const word hds_sz = sizeof(hds)/sizeof(word);
@@ -99,28 +82,32 @@ word * init_heap(word * heap_start, word heap_sz){
 
   hds * heap = (hds*)heap_start;
   heap->heap_end = (word)(heap_start + heap_sz);
-  heap->words_used = 0;
   heap->prev = 0;
   heap->next = 0;
   heap->fmds_ptr = (word)(heap_start + hds_sz);
 
+  heap->true_num_alloced = 0;
+  heap->gc_num_alloced = 0;
+  heap->words_used = 0;
+
   word * mem = heap_start + hds_sz;
   _avl_insert((word**)&(heap->fmds_ptr), (word*)(heap->fmds_ptr), heap_sz - hds_sz, &avl_basic_cmp);
 
-  return heap_start;
-}
-
-
-word * gc_init(word * heap){
   word size = 1;
-  word * mem = alloc(heap, size + obj_sz - 1);
+  word * o = (word*)alloc((word*)heap, size + obj_sz - 1);
   if (!mem){return (word*)0;}
-  Object * obj = (Object*)(mem - 1);
+  Object * obj = (Object*)(o - 1);
   obj->refcount = 1;
   obj->size = size;
   obj->contents[0] = 0;
-  gc_set = (word*)obj;
-  return (word*)obj;
+  heap->gc_set = (word*)obj;
+
+  init_types((word*)heap);
+  ((Object*)heap->gc_set)->type = (word)set_type;
+  ((Object*)set_type)->refcount += 1;
+
+
+  return heap_start;
 }
 
 
@@ -152,7 +139,7 @@ word * alloc(word * heap, word mem_sz){
   mem->mem_sz = mem_sz;
   //print_cstr("a");print_uint(&mem->mem, 16,0);spc(1);
   /* array_append(heap, alloc_buf + 3, (word*)&addr); */
-  ++true_num_alloced;
+  ++h_info->true_num_alloced;
   h_info->words_used += mem_sz;
   return addr;
 }
@@ -164,25 +151,27 @@ void check_heap_capacity(word * heap){
   word total_mem = ((word*)(h_info->heap_end) - heap);
   word n = 8;
   word ll = total_mem/n;
-  word ul = (n-1) * ll;
+  word ul = ((n-1) * ll) / 2;
   //check_gc(gc_set);
   if (h_info->words_used >= gc_lim){
-    gc_collect(heap, gc_set);
-    gc_lim = 3*min(max(ll, h_info->words_used), ul) >> 1;
+    gc_collect(heap);
+    gc_lim = min(3 * max(ll, h_info->words_used) / 2, ul);
   }
 }
 
 
 word * gc_alloc(word * heap, word n){
+  hds * h_info = (hds*)heap;
   word * addr = alloc(heap, n);
   if (!addr){return 0;}
-  word ** tr = (word**)&((Object*)gc_set)->contents;
+  Object * gc_set = (Object*)h_info->gc_set;
+  word ** tr = (word**)&gc_set->contents; 
   word cond = avl_insert(heap, tr, (word)addr, &avl_basic_cmp);
   if (cond){
     free(heap, addr);
     return 0;
   }
-  ++gc_num_alloced;
+  ++h_info->gc_num_alloced;
   return addr;
 }
 
@@ -198,7 +187,7 @@ void free(word * heap, word * addr){
   umds * mem_obj = (umds*)(addr - umds_sz);
   word fm_sz = mem_obj->mem_sz;
   avl_merge(tr, freed_mem, fm_sz);
-  --true_num_alloced;
+  --h_info->true_num_alloced;
   h_info->words_used -= fm_sz;
   //print_cstr("f");print_uint(addr, 16, 0);spc(1);
   /* for (word i = 0; i < 2048-3; ++i){ */
@@ -211,11 +200,13 @@ void free(word * heap, word * addr){
 
 
 void gc_free(word * heap, word * addr){
+  hds * h_info = (hds*)heap;
+  word * gc_set = (word*)h_info->gc_set;
   word * a = set_remove(heap, gc_set, addr, &avl_basic_cmp);
   if (a){
     free(heap, addr);
   };
-  --gc_num_alloced;
+  --h_info->gc_num_alloced;
 }
 
 
@@ -400,6 +391,8 @@ word sweep(word * heap, word * obj, word * q){
   if (!o || !visited(obj)){return 0;}
 
   // Return if object has already been freed or is in the process of being freed
+  hds * h_info = (hds*)heap;
+  Object * gc_set = (Object*)h_info->gc_set;
   word ** tr = (word**)&(((Object*)gc_set)->contents);
   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(obj+1), &avl_basic_cmp);
   if (!node){return 0;}
@@ -451,14 +444,17 @@ void _gc_collect(word *heap, word *tree, word * q) {
 }
 
 
-void gc_collect(word * heap, word * gc_set){
-  word * tr = (word*)((Object*)gc_set)->contents[0];
+void gc_collect(word * heap){
+  hds * h_info = (hds*)heap;
+  word * gc_set = h_info->gc_set;
+  word ** tr = (word**)&((Object*)gc_set)->contents;
   word * q = queue(heap);
-  _gc_collect(heap, tr, q);
+  _gc_collect(heap, *tr, q);
+
   word * data;
   while((data = (word*)queue_pop(heap, q))){
     //continue if obj has already been freed
-    word ** tr = (word**)&(((Object*)gc_set)->contents);
+    tr = (word**)&(((Object*)gc_set)->contents);
     AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(data+1), &avl_basic_cmp);
     if (!node){continue;}
 
@@ -472,13 +468,8 @@ void gc_collect(word * heap, word * gc_set){
     sweep(heap, data, q);
     while ((obj = (word*)queue_pop(heap, q))){
       object_delete(heap, (word*)((Object*)obj)->type);
-      /* if (((Object*)obj)->type && !obj_cmp(((Object*)obj)->type, function_type)){ */
-      /* 	nl(3); */
-      /* 	rec_obj_print(obj);nl(3); */
-      /* 	print_uint(((Object*)obj)->refcount, 16, 0);nl(1); */
-      /* } */
       free(heap, (word*)obj + 1);
-      --gc_num_alloced;
+      --h_info->gc_num_alloced;
     }
     free(heap, q);
   }

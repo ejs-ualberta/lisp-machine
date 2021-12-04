@@ -32,8 +32,23 @@ void fb_print_uint(uint32_t * loc, word val, word padding);
 
 
 // alloc.c
+typedef struct used_mem_datastructure{
+  word mem_sz;
+  word mem[];
+} umds;
+
+typedef struct heap_datastructure{
+  word heap_end;
+  word prev;
+  word next;
+  word fmds_ptr;
+  word * gc_set;
+  word true_num_alloced;
+  word gc_num_alloced;
+  word words_used;
+} hds;
+
 extern const word hds_sz;
-extern word * gc_set;
 word get_mem_sz(word * addr); 
 word * init_heap(word * heap_start, word heap_sz);
 word * gc_init(word * heap);
@@ -44,7 +59,7 @@ void free(word * heap, word * addr);
 void gc_free(word * heap, word * addr);
 word * realloc(word * heap, word * addr, word mem_sz);
 word * gc_realloc(word * heap, word * addr, word mem_sz);
-void gc_collect(word * heap, word * gc_set);
+void gc_collect(word * heap);
 
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
@@ -127,7 +142,7 @@ word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_basic_cmp(word * n1, word * n2);
 word avl_mem_cmp(word * n1, word * n2);
 void print_avl(word * tree, word space, word inc);
-void init_types(void);
+void init_types(word * global_heap_start);
 word * pair(word * heap, word * obj1, word * obj2);
 word obj_cmp(word * obj1, word * obj2);
 word set_keycmp(word * pair1, word * pair2);
