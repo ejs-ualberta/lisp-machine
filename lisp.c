@@ -28,62 +28,68 @@ word * null = (word *)0;
 word * ops;
 
 
-//TODO: make a version that takes more than two args (need a mutating version of add)
-word * b_plus(word * heap, word * args){
-  return num_add(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
-}
+/* word * init_machine(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){ */
+/*   word * handle = (word*)&ImageHandle; */
+/*   word * machine = set(global_heap_start); */
+/*   ((Object*)machine)->refcount += 1; */
 
+/*   word st_key[7] = {'s', 'y', 's', '_', 't', 'a', 'b'}; */
+/*   word * st_str = object(global_heap_start, string_type, 7, st_key, 7); */
+/*   word * st_val = object(global_heap_start, num_type, 1, (word*)SystemTable, 1); */
+/*   set_add_str_key(global_heap_start, machine, st_str, st_val); */
 
-word * b_minus(word * heap, word * args){
-  word * arg2 = obj_array_idx(args, 2);
-  num_negate(arg2);
-  word * ret = num_add(heap, (word*)obj_array_idx(args, 1), arg2);
-  num_negate(arg2);
-  return ret;
-}
+/*   word img_key[3] = {'i', 'm', 'g'}; */
+/*   word * img_str = object(global_heap_start, string_type, 3, img_key, 3); */
+/*   word * img_val = object(global_heap_start, num_type, 1, (word*)&handle, 1); */
+/*   set_add_str_key(global_heap_start, machine, img_str, img_val); */
 
-word * b_shift(word * heap, word * args){
-  return num_shift(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
-}
+/*   /\* word types_key[5] = {'t', 'y', 'p', 'e', 's'}; *\/ */
+/*   /\* word * types_str = object(global_heap_start, string_type, 5, types_key, 5); *\/ */
+/*   /\* word * types_set = set(global_heap_start); *\/ */
+/*   /\* set_add_str_key(global_heap_start, types_set, string_type, string_type); *\/ */
+/*   /\* set_add_str_key(global_heap_start, types_set, num_type, num_type); *\/ */
+/*   /\* set_add_str_key(global_heap_start, types_set, array_type, array_type); *\/ */
+/*   /\* set_add_str_key(global_heap_start, types_set, set_type, set_type); *\/ */
+/*   /\* set_add_str_key(global_heap_start, types_set, function_type, function_type); *\/ */
+/*   /\* set_add_str_key(global_heap_start, types_set, cell_type, cell_type); *\/ */
+/*   /\* /\\* set_add_str_key(global_heap_start, types_set, native_type, native_type); *\\/ *\/ */
+/*   /\* set_add_str_key(global_heap_start, machine, types_str, types_set); *\/ */
 
+/*   word pc_key[2] = {'p', 'c'}; */
+/*   word * pc_str = object(global_heap_start, string_type, 2, pc_key, 2); */
+/*   word * pc_set = set(global_heap_start); */
+/*   set_add_str_key(global_heap_start, machine, pc_str, pc_set); */
 
-word * b_mul(word * heap, word * args){
-  return num_mul(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
-}
+/*   word fb_set_key[2] = {'f', 'b'}; */
+/*   word * fb_set_str = object(global_heap_start, string_type, 2, fb_set_key, 2); */
+/*   word * fb_set = set(global_heap_start); */
+/*   set_add_str_key(global_heap_start, pc_set, fb_set_str, fb_set); */
+/*   word fb_base_key[4] = {'b', 'a', 's', 'e'}; */
+/*   word * fb_base_str = object(global_heap_start, string_type, 4, fb_base_key, 4); */
+/*   word * fb_base_val = object(global_heap_start, num_type, 1, (word*)&fb_start, 1); */
+/*   word fb_hres_key[4] = {'h', 'r', 'e', 's'}; */
+/*   word * fb_hres_str = object(global_heap_start, string_type, 4, fb_hres_key, 4); */
+/*   word * fb_hres_val = object(global_heap_start, num_type, 1, (word*)&b_hres, 1); */
+/*   word fb_vres_key[4] = {'v', 'r', 'e', 's'}; */
+/*   word * fb_vres_str = object(global_heap_start, string_type, 4, fb_vres_key, 4); */
+/*   word * fb_vres_val = object(global_heap_start, num_type, 1, (word*)&b_vres, 1); */
+/*   set_add_str_key(global_heap_start, fb_set, fb_base_str, fb_base_val); */
+/*   set_add_str_key(global_heap_start, fb_set, fb_hres_str, fb_hres_val); */
+/*   set_add_str_key(global_heap_start, fb_set, fb_vres_str, fb_vres_val); */
 
+/*   word mem_key[3] = {'m', 'e', 'm'}; */
+/*   word * mem_set_str = object(global_heap_start, string_type, 3, mem_key, 3); */
+/*   word * mem_set = set(global_heap_start); */
+/*   set_add_str_key(global_heap_start, pc_set, mem_set_str, mem_set); */
+/*   word * mem_base = object(global_heap_start, num_type, 1, (word*)&global_heap_start, 1); */
+/*   set_add_str_key(global_heap_start, mem_set, fb_base_str, mem_base); */
+/*   word mem_sz_key[3] = {'s', 'z'}; */
+/*   word * mem_sz_str = object(global_heap_start, string_type, 2, mem_sz_key, 2); */
+/*   word * mem_sz = object(global_heap_start, num_type, 1, (word*)&global_heap_size, 1); */
+/*   set_add_str_key(global_heap_start, mem_set, mem_sz_str, mem_sz); */
 
-word * b_div(word * heap, word * args){
-  return num_div(heap, (word*)obj_array_idx(args, 1), (word*)obj_array_idx(args, 2));
-}
-
-
-word * init_machine(word * heap, EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable){
-  word * handle = (word*)&ImageHandle;
-  word * machine = set(heap);
-
-  word * empty_list = obj_array(heap, 0);
-  word b_plus_key[1] = {'+'};
-  word * b_plus_str = object(heap, string_type, 1, b_plus_key, 1);
-  set_add_str_key(heap, machine, b_plus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_plus)));
-
-  word b_minus_key[1] = {'-'};
-  word * b_minus_str = object(heap, string_type, 1, b_minus_key, 1);
-  set_add_str_key(heap, machine, b_minus_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_minus)));
-
-  word b_shift_key[1] = {'^'};
-  word * b_shift_str = object(heap, string_type, 1, b_shift_key, 1);
-  set_add_str_key(heap, machine, b_shift_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_shift)));
-
-  word b_mul_key[1] = {'*'};
-  word * b_mul_str = object(heap, string_type, 1, b_mul_key, 1);
-  set_add_str_key(heap, machine, b_mul_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_mul)));
-
-  word b_div_key[1] = {'/'};
-  word * b_div_str = object(heap, string_type, 1, b_div_key, 1);
-  set_add_str_key(heap, machine, b_div_str, new_fn(heap, 0, empty_list, word_to_num(heap, (word)b_div)));
-
-  return machine;
-}
+/*   return machine; */
+/* } */
 
 
 void o_del(word * heap, word * obj){
@@ -94,12 +100,13 @@ void o_del(word * heap, word * obj){
 
 word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, word * ops){
   word * ret = obj_array(heap, 8);
-  word _tmp[sizeof(Object)+1];
-  Object * tmp = (Object*)&_tmp;
-  *tmp = (Object){5, 1, (word)string_type, 1, {}};
+  word tmp_init = 0;
+  Object * tmp = (Object*)object(heap, string_type, 1, &tmp_init, 1);
+  ++tmp->refcount;
 
+  word * tok;
   while (*i < code_len){
-    word * tok = object(heap, string_type, 1, code + *i, 1);
+    tok = object(heap, string_type, 1, code + *i, 1);
     if (in_set(ws, tok)){
       o_del(heap, tok);
       //--((Object*)string_type)->refcount;
@@ -113,18 +120,21 @@ word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, w
 	  }
 	  tok = object_append_word(heap, tok, code[*i]);
 	}
+	obj_array_append(heap, ret, tok);
       }else if (!obj_cmp((word*)tok, blk_l_delim)){
 	o_del(heap, tok);
 	++*i;
 	obj_array_append(heap, ret, _tokenize(heap, code, code_len, i, ws, ops));
 	continue;
       }else if (!obj_cmp((word*)tok, blk_r_delim)){
+	object_delete(heap, (word*)tmp);
 	o_del(heap, tok);
 	++*i;
 	return ret;
+      }else{
+	obj_array_append(heap, ret, in_set(ops, tok));
+	o_del(heap, tok);
       }
-
-      obj_array_append(heap, ret, tok);
     }else{
       for (++*i; *i < code_len; ++*i){
 	tmp->contents[0] = code[*i];
@@ -144,6 +154,7 @@ word * _tokenize(word * heap, word * code, word code_len, word * i, word * ws, w
     }
     ++*i;
   }
+  object_delete(heap, (word*)tmp);
   return ret;
 }
 
@@ -197,7 +208,6 @@ word * tokenize(word * heap, word * code, word code_len){
   word * ret = _tokenize(heap, code, code_len, &i, whitespace, ops);
   object_delete(heap, ops);
   object_delete(heap, whitespace);
-
   return ret;
 }
 
@@ -205,12 +215,15 @@ word * tokenize(word * heap, word * code, word code_len){
 word * new_fn(word * heap, word * _sup, word * args, word * exp){
   word * ns = set(heap);
   word fn_sz = 3;
-  word fn_init[3] = {(word)ns, (word)args, (word)exp};
+  word * _self = object(heap, function_type, fn_sz, 0, 0);
+  ((Object*)_self)->size = fn_sz;
+  ((Object*)_self)->contents[0] = (word)ns;
+  ((Object*)_self)->contents[1] = (word)args;
+  ((Object*)_self)->contents[2] = (word)exp;
   ++((Object*)ns)->refcount;
   ++((Object*)args)->refcount;
   ++((Object*)exp)->refcount;
 
-  word * _self = object(heap, function_type, fn_sz, fn_init, fn_sz);
 
   if (_sup){set_add_str_key(heap, ns, sup, _sup);}//  --((Object*)_sup)->refcount;}
   set_add_str_key(heap, ns, self, _self);
@@ -233,20 +246,15 @@ word * get_val(word * obj, word * ns){
 
 
 word * call_fn(word * heap, word * args, word * ns){
-  word * slf = obj_array_idx(args, 0);
-  word * exp = (word*)((Object*)slf)->contents[2];
-  if (!obj_cmp((word*)((Object*)exp)->type, num_type)){
-    word fptr = ((Object*)exp)->contents[0];
-    return ((word*(*)(word*, word*))fptr)(heap, args);
-  }else if (obj_cmp((word*)((Object*)args)->type, array_type)){
+  if (obj_cmp((word*)((Object*)args)->type, array_type)){
     return get_val(args, ns);
   }
-
+  word * slf = obj_array_idx(args, 0);
   word * _ns = (word*)((Object*)slf)->contents[0];
   word * arg_names = (word*)((Object*)slf)->contents[1];
+  word * exp = (word*)((Object*)slf)->contents[2];
   word a_n_len = obj_array_size(arg_names);
   word * ret = 0;
-
   if (obj_array_size(args) == a_n_len + 1){
     word * _sup = set_get_value(_ns, sup);
     word * tmp_fn = new_fn(heap, _sup, arg_names, exp);
@@ -320,12 +328,12 @@ word * eval_fn(word * heap, word * exp, word * ns){
 
 
 word * run_prog(word * heap, word * machine, word * code, word code_sz){
-  word _sup[3] = {'s', 'u', 'p'};
-  sup = object(heap, string_type, 3, _sup, 3);
+  sup = cstr_to_string(heap, "sup");
   ++((Object*)sup)->refcount;
-  word _self[4] = {'s', 'e', 'l', 'f'};
-  self = object(heap, string_type, 4, _self, 4);
+  self = cstr_to_string(heap, "self");
   ++((Object*)self)->refcount;
+  word * mach_str = cstr_to_string(heap, "mach");
+  ++((Object*)mach_str)->refcount;
 
   //TODO: make these global constants.
   word _def[1] = {'~'};
@@ -351,16 +359,7 @@ word * run_prog(word * heap, word * machine, word * code, word code_sz){
   set_add_str_key(heap, ops, name, object(heap, num_type, 1, (word*)&nf, 1));
   word * exp = tokenize(heap, code, code_sz);
   word * empty_lst = obj_array(heap, 0);
-
-  //word * main = new_fn(heap, (word*)0, empty_lst, exp);
-  word fn_init[3] = {(word)machine, (word)empty_lst, (word)empty_lst};
-  ++((Object*)machine)->refcount;
-  ((Object*)empty_lst)->refcount += 2;
-  word * global = object(heap, function_type, 3, fn_init, 3);
-  //set_add_str_key(heap, machine, self, global);
-
-  word * main = new_fn(heap, global, empty_lst, exp);
-
+  word * main = new_fn(heap, (word*)0, empty_lst, exp);
   word * args = obj_array(heap, 1);
   word * expr = obj_array(heap, 1);
   ++((Object*)expr)->refcount;
@@ -475,36 +474,3 @@ word * run_prog(word * heap, word * machine, word * code, word code_sz){
 /* |>[#F ~>[[v1 v2][:v2]]] */
 /* |>[if ~>[[cond exp1 exp2][:>[:>[:pair :exp1 :exp2] :cond]]]] */
 /* :>[:>[:if :#F :#F :#T] True False] */
-
-/* |>[#T ~>[[v1] [~>[[v2] [:v1]]]]] */
-/* |>[#F ~>[[v1] [~>[[v2] [:v2]]]]] */
-/* |>[nil ~>[[x] [:#T]]] */
-/* |>[id ~>[[x] [:x]]] */
-/* |>[cons ~>[[v1 v2] [~>[[cond][:>[:>[:cond :v1] :v2]]]]]] */
-/* |>[car ~>[[lst] [:>[:lst :#T]]]] */
-/* |>[cdr ~>[[lst] [:>[:lst :#F]]]] */
-/* |>[sel ~>[[cond v1 v2] [:>[:>[:cons :v1 :v2] :cond]]]] */
-/* |>[if ~>[[cond v1 v2] [::>[:sel :cond v1 v2]]]] */
-/* |>[empty ~>[[l] [:>[:l ~>[[head] [~>[[tail] [:#F]]]]]]]] */
-/* |>[concat ~>[[l1 l2][ */
-/*     :>:>[:if  */
-/*         :>[:empty |>[x :>[:cdr :l1]]] */
-/*         [:id :>[:cons :>[:car :l1] :l2]] */
-/*         [:cons  */
-/*             :>[:car :l1] */
-/*             :>[:concat :x :l2]]]]]] */
-
-/* |>[plist ~>[[l][ */
-/*     >:>[:if  */
-/*         :>[:empty :l] */
-/*         [] */
-/*         [:>[:car :l] :>[:plist :>[:cdr :l]]]]]]] */
-
-/* |>[l1 :>[:cons 1 :nil]] */
-/* |>[l2 :>[:cons 2 :nil]] */
-/* |>[l3 :>[:cons 3 :l2]] */
-/* |>[loop ~>[[] [:>[:loop]]]] */
-/* |>[conc :>[:concat :l1 :l2]] */
-/* :>[:if :#F [:loop] [:id :conc]] */
-
-/* :>[:plist :>[:concat :l3 :l2]] */

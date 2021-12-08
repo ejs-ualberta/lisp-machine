@@ -1,15 +1,18 @@
-num_regs = 32
-regs = ['sp', 'fp', 'bp', 'lr', 'ir', 'rr', 'pc', 'sr']
+# This compiler assumes the convention that the stack pointer is incremented before placing
+# any data on the stack so that interrupts can use the stack safely. Also the stack pointer must be decremented
+# only AFTER any data on the stack is accessed.
+
+#TODO: Make sure that the stack is incremented enough to hold all registers saved on every operation.
+#TODO: Some method of creating arrays and structs.
+
+labels = dict()
+
+
 def to_hex(val):
     if val < 0:
         return "-" + hex(val)[3:]
     else:
         return hex(val)[2:]
-
-regnums = {regs[len(regs) - i - 1]:'r' + to_hex(num_regs - i-1) for i in range(len(regs)-1, -1, -1)}
-#print(regnums)
-
-labels = dict()
 
 
 def mangle(s):
@@ -34,7 +37,7 @@ def tok(in_str, i):
             continue
         else:
             t = ""
-            while in_str[i] not in prims and in_str[i] not in ws:
+            while i < len(in_str) and (in_str[i] not in prims) and in_str[i] not in ws:
                 t += in_str[i]
                 i += 1
             try:
@@ -58,6 +61,7 @@ def compile_gt(ast, idx, env):
     buf = ""
     if len(ast) != 3:
         return buf
+    buf += "ads r18 r18 2\n"
     buf += "str r0 r19 " + to_hex(idx + 1) + '\n'
     buf += compile_expr(ast[2], idx + 1, env.copy())
     buf += "str r1d r19 " + to_hex(idx + 2) + '\n'
@@ -66,6 +70,7 @@ def compile_gt(ast, idx, env):
     buf += "sbs r1d r0 r1d\n"
     buf += "shf r1d r1d 3f\n"
     buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
+    buf += "sbs r18 r18 2\n"
     return buf
 
 
@@ -73,6 +78,7 @@ def compile_load(ast, idx, env):
     buf = ""
     if len(ast) != 3:
         return buf
+    buf += "ads r18 r18 2\n"
     buf += "str r0 r19 " + to_hex(idx + 1) + '\n'
     buf += compile_expr(ast[1], idx + 1, env.copy())
     buf += "str r1d r19 " + to_hex(idx + 2) + '\n'
@@ -80,6 +86,7 @@ def compile_load(ast, idx, env):
     buf += "ldr r0 r19 " + to_hex(idx + 2) + '\n'
     buf += "ldr r1d r0 r1d\n"
     buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
+    buf += "sbs r18 r18 2\n"
     return buf
 
 
@@ -87,6 +94,7 @@ def compile_store(ast, idx, env):
     buf = ""
     if len(ast) != 3:
         return buf
+    buf += "ads r18 r18 2\n"
     buf += "str r0 r19 " + to_hex(idx + 1) + '\n'
     buf += compile_expr(ast[1], idx + 1, env.copy())
     buf += "str r1d r19 " + to_hex(idx + 2) + '\n'
@@ -94,6 +102,7 @@ def compile_store(ast, idx, env):
     buf += "ldr r0 r19 " + to_hex(idx + 2) + '\n'
     buf += "str r1d r0 0\n"
     buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
+    buf += "sbs r18 r18 2\n"
     return buf
 
 
@@ -106,12 +115,12 @@ def compile_function(ast, idx, env):
     m = mangle(ast[0])
     labels[m] = ""
     buf = m + "\n"
-    buf += "str r19 r18 1\n" + "ads r18 r18 1\n" + "ads r19 r18 0\n"
+    buf += "ads r18 r18 1\n" + "str r19 r18 0\n" + "ads r19 r18 0\n"
     i = 2
     while i < len(ast):
         buf += compile_expr(ast[i], 0, env)
         i += 1
-    buf +=  "sbs r18 r18 1\n" + "ldr r19 r18 1\n" + "jnc r1F r1B 0\n"
+    buf += "ldr r19 r18 0\n" + "sbs r18 r18 1\n" + "jnc r1F r1B 0\n"
     labels[m] = buf
     return "ads r1d r1a " + m + "\n"
 
@@ -127,6 +136,7 @@ def compile_call(ast, idx, env):
         ret = ""
         if len(ast) < 3:
             return ret
+        ret += "ads r18 r18 " + str(len(ast[1])) + "\n"
         for pair in ast[1]:
             idx += 1
             env[pair[0]] = idx
@@ -135,6 +145,7 @@ def compile_call(ast, idx, env):
         while i < len(ast):
             ret += compile_expr(ast[i], idx, env.copy())
             i += 1
+        ret += "sbs r18 r18 " + str(len(ast[1])) + "\n"
         return ret
     elif ast[0] == "set":
         ret = ""
@@ -176,13 +187,12 @@ def compile_call(ast, idx, env):
     else:
         m = mangle(ast[0])
         idx += 1
-        ret = ""
+        offset = to_hex(idx + len(ast) - 1)
+        ret = "ads r18 r18 " + offset + "\n" # set stack ptr
         for arg in ast[1:]:
             ret += compile_expr(arg, idx, env.copy())
             ret += "str r1d r19 " + to_hex(idx) + "\n"
             idx += 1
-        offset = to_hex(idx)
-        ret += "ads r18 r18 " + offset + "\n" # set stack ptr
         ret += "str r1b r18 0\n" # save link register on stack
         ret += "ads r1b r1e 2\n" # put pc + 2 in the link register
         ret += "jnc r1F r1a " + m + "\n"
@@ -208,6 +218,7 @@ def builtin_op(op, ast, idx, env):
     buf = ""
     if len(ast) != 3:
         return buf
+    buf += "ads r18 r18 2\n"
     buf += "str r0 r19 " + to_hex(idx + 1) + '\n'
     buf += compile_expr(ast[1], idx + 1, env.copy())
     buf += "str r1d r19 " + to_hex(idx + 2) + '\n'
@@ -215,6 +226,7 @@ def builtin_op(op, ast, idx, env):
     buf += "ldr r0 r19 " + to_hex(idx + 2) + '\n'
     buf += op + " r1d r0 r1d\n"
     buf += "ldr r0 r19 " + to_hex(idx + 1) + '\n'
+    buf += "sbs r18 r18 2\n"
     return buf
 
 
@@ -238,9 +250,17 @@ def comp(string):
 #c1 = "[: fn [x y] [+ x y]] [: fn1 [x y] [+ [fn x y] 1]] [: fn2 [x] x] [fn2 [fn 1 2]]"
 #c1 = "[: fact [x] [if [> x 1] [* x [fact [- x 1]]] 1]] [fact 10]"
 #c1 = "[. 10000 deadbeef] [, ffff 1]"
-#c1 = "[: fact [i] [let [[x 1]] [loop [> i 0] [set x [* x i]] [set i [- i 1]]] x]] [fact 5]"
+c1 = "[: fact [i] [let [[x 1]] [loop [> i 0] [set x [* x i]] [set i [- i 1]]] x]] [fact 5]"
 #c1 = "[let [[x 5]] [set x [- x 1]] x]"
 #c1 = "[: f[x][g x]] [: g[x][if [> x 0] [+ 1 [f [- x 1]]] 0]] [g 20]"
-c1 = "[: f [x y] [asm [ldr r1d r19 -3]]] [f deadbeef deadc0de]"
+#c1 = "[: f [x y] [asm [ldr r1d r19 -3]]] [f deadbeef deadc0de]"
+#c1 = "[: f[x y][+ x y]] [f 1 2]"
+#c1 = "[: f[x]x]"
+#'''
+#[: nat_pow[base exp][let [[x 1]] [loop [> exp 0] [set x [* x base]] [set exp [- exp 1]]] x]]
+#[nat_pow 2 4]
+#'''
 code = comp(c1)
 print(code)
+
+#for line in code.split("\n"): print("\"" + line + "\\n\"")

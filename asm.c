@@ -28,7 +28,7 @@ enum reg_aliases{
   fp,
   bp, // pgrm base ptr
   lr, // link reg
-  ir, // exception return address
+  ir, // interrupt function address
   rr, // result register, used for upper reg when multiplying/dividing.
   pc,
   sr, // status register (exec cont. bit, carry bits, etc)
@@ -50,7 +50,7 @@ enum opcodes{
   ldr,
   str,
   jnc,
-  exc, // Generates interrupt. Can't call it 'int' :/
+  exc, // Generates interrupt. Interrupt -1 is an eret.
   // TODO: Add instr for native code exec?
 
   n_instrs, // Not an instruction, just to tell how many instructions there are.
@@ -74,7 +74,7 @@ op_data instructions[n_instrs] = {
   [ldr]=(op_data){3, {'l', 'd', 'r', '\0'}},
   [str]=(op_data){3, {'s', 't', 'r', '\0'}},
   [jnc]=(op_data){3, {'j', 'n', 'c', '\0'}}, // NOTE: use sr for uncond jump.
-  [exc]=(op_data){3, {'e', 'x', 'c', '\0'}}, // ivt addr, int num, int arg
+  [exc]=(op_data){1, {'e', 'x', 'c', '\0'}},
 };
 
 typedef struct label_addr{
@@ -204,7 +204,6 @@ word expect_hex_from_str(word * code, word code_sz, word * index, word max_val, 
 }
 
 
-// code can be treated as just a regular word *, not a special datastructure, although it is an array.
 word * compile(word * heap, word * code, word code_sz){
   // Use magic number to estimate of the amount of characters per instr;
   // opc arg arg arg imm\n
@@ -329,7 +328,7 @@ word * compile(word * heap, word * code, word code_sz){
   for (word i = 0; i < array_len(lbl_refs); ++i){
     lbl_info * refs = (lbl_info*)lbl_refs;
     word ref_addr = (refs[i]).addr;
-    lbl_info * labels = (lbl_info*)lbls;
+    //lbl_info * labels = (lbl_info*)lbls;
     word * ptr = array_find(lbls, lbls, (word*)(refs + i), lbl_streq, code + code_sz);
     if (ptr){
       arr[ref_addr] |= ((lbl_info*)ptr)->addr;
@@ -352,22 +351,34 @@ word * compile(word * heap, word * code, word code_sz){
 }
 
 
-word run(word * bytecode, word * machine){
+word run(word * exception_fifo, word * bytecode){
   // Add 1 so there is a secret register for immediates (to simplify the code)
-  word regs[num_regs + 1] = {0};
-  regs[ir] = (word)machine;
+  word regs[num_regs + 1];
+  for (word i = 0; i < num_regs + 1; ++i){regs[i] = 0;}
   regs[sr] = exc_cont_mask;
   regs[pc] = (word)bytecode / sizeof(word);
 
   word arg_mask = ((word)1 << arg_size) - 1;
-  word args[mx_reg_args] = {0};
+  word args[mx_reg_args];
+  for (word i = 0; i < mx_reg_args; ++i){args[i] = 0;}
 
+  word exc_num_sz = concurrent_fifo_item_sz(exception_fifo);
+  word exc_num[exc_num_sz];
   while (regs[sr] & exc_cont_mask){
-    /* EFI_INPUT_KEY kp; */
-    /* EFI_STATUS S = get_char(&kp); */
-    /* if (!EFI_ERROR(S)){ */
-      
-    /* } */
+    //void concurrent_fifo_print(word * c_fifo);
+    //concurrent_fifo_print(exception_fifo);
+    if (!concurrent_fifo_pop(exception_fifo, exc_num)){
+      //TODO: Make stack direction configurable? Maybe in status register?
+      word oldsp = regs[sp] + 1;
+      regs[sp] += 1 + exc_num_sz;
+      *(word*)(sizeof(word) * regs[sp]) = regs[lr];
+      for (word i = 0; i < exc_num_sz; ++i){
+	*((word*)(sizeof(word) * oldsp) + i) = exc_num[i];
+      }
+      regs[lr] = regs[pc];
+      regs[pc] = regs[ir];
+    }
+
     word instr = *(word*)(regs[pc] * sizeof(word));
     word opcode = (instr & inst_mask) >> opcode_start;
     word n_args = instructions[opcode].n_args;
@@ -392,6 +403,7 @@ word run(word * bytecode, word * machine){
 
     sword sh;
     word x, y;
+    //fb_print_uint(fb_start + 100, opcode, 0);
     switch (opcode){
     case acx:
       regs[args[1]] = atomic_cas((word*)(regs[args[0]]*sizeof(word)), regs[args[1]], regs[args[2]]);
@@ -442,10 +454,19 @@ word run(word * bytecode, word * machine){
       }
       break;
     case ldr:
-      regs[args[0]] = *(word*)(sizeof(word)*regs[args[1]] + sizeof(word)*regs[args[2]]);
+      ;
+      uint32_t * addr = (uint32_t*)(sizeof(word)*regs[args[1]] + sizeof(word)*regs[args[2]]);
+      word lower = *addr;
+      word upper = (word)*(addr + 1) << 32;
+      regs[args[0]] = lower | upper;
       break;
     case str:
-      *(word*)(sizeof(word)*regs[args[1]] + sizeof(word)*regs[args[2]]) = regs[args[0]];
+      ;
+      uint32_t l = (uint32_t)regs[args[0]];
+      uint32_t u = (uint32_t)(regs[args[0]] >> 32);
+      uint32_t * adr = (uint32_t*)(sizeof(word)*regs[args[1]] + sizeof(word)*regs[args[2]]);
+      *adr = l;
+      *(adr + 1) = u;
       break;
     case jnc:
       if (regs[args[0]]){
@@ -454,13 +475,60 @@ word run(word * bytecode, word * machine){
       }
       break;
     case exc:
-      //regs[rr] = (word)((word*(*)(word*))*(word*)((word*)regs[args[1]] + regs[args[2]]))((word*)regs[args[0]]);
+      //This is only ugly because arm won't let you do a svc with a register argument. Also C macros are trash and I refuse to use them.
+      switch(regs[args[0]]){
+      case (word)-1: //eret
+	regs[pc] = regs[lr];
+	regs[lr] = *(word*)(sizeof(word*) * regs[sp]);
+	regs[sp] -= 1 + exc_num_sz;
+	continue;
+      case 0: asm volatile("svc #0");break;
+      case 1: asm volatile("svc #1");break;   
+      case 2: asm volatile("svc #2");break;   
+      case 3: asm volatile("svc #3");break;   
+      case 4: asm volatile("svc #4");break;   
+      case 5: asm volatile("svc #5");break;   
+      case 6: asm volatile("svc #6");break;   
+      case 7: asm volatile("svc #7");break;   
+      case 8: asm volatile("svc #8");break;   
+      case 9: asm volatile("svc #9");break;   
+      case 10: asm volatile("svc #10");break;  
+      case 11: asm volatile("svc #11");break; 
+      case 12: asm volatile("svc #12");break; 
+      case 13: asm volatile("svc #13");break; 
+      case 14: asm volatile("svc #14");break; 
+      case 15: asm volatile("svc #15");break; 
+      case 16: asm volatile("svc #16");break; 
+      case 17: asm volatile("svc #17");break; 
+      case 18: asm volatile("svc #18");break; 
+      case 19: asm volatile("svc #19");break; 
+      case 20: asm volatile("svc #20");break; 
+      case 21: asm volatile("svc #21");break; 
+      case 22: asm volatile("svc #22");break; 
+      case 23: asm volatile("svc #23");break; 
+      case 24: asm volatile("svc #24");break; 
+      case 25: asm volatile("svc #25");break; 
+      case 26: asm volatile("svc #26");break; 
+      case 27: asm volatile("svc #27");break; 
+      case 28: asm volatile("svc #28");break; 
+      case 29: asm volatile("svc #29");break; 
+      case 30: asm volatile("svc #30");break; 
+      case 31: asm volatile("svc #31");break;
+      default: break;
+      }
       break;
     default:
       break;
     }
 
+    /* uint16_t buf[100]; */
+    /* uintn_to_str(buf, 100, regs[pc]-regs[bp], 10); */
+    /* for (uint16_t * x = buf; *x; ++x){ */
+    /*   uart_send(*x); */
+    /* }uart_puts("\n"); */
     ++(regs[pc]);
   }
+
   return regs[rr];
 }
+

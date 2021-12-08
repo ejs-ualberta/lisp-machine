@@ -62,8 +62,7 @@ word _check_gc(word * tree) {
   AVL_Node * right = (AVL_Node*)node->right;
   word ret = 1;
   Object * o = (Object*)((word*)node->data - 1);
-  print_uint((word)o->refcount, 16, 0);spc(1);print_uint((word)o, 16, 0);spc(1);rec_obj_print((word*)o);nl(1);
-  //for (word i = 0; i < 10000000; ++i){print_cstr("");}
+  uart_print_uint((word)o->refcount, 16);uart_puts(" ");uart_print_uint((word)o, 16);uart_puts(" ");rec_obj_print((word*)o);uart_puts("\n");
   ret += _check_gc((word*)left);
   ret += _check_gc((word*)right);
   return ret;
@@ -120,7 +119,9 @@ word * alloc(word * heap, word mem_sz){
   word ** tr = (word**)&(h_info->fmds_ptr);
   word * mem_ptr = (word*)h_info->fmds_ptr;
   AVL_Node * min_ge = (AVL_Node*)avl_min_ge(mem_ptr, mem_sz);
-  if (!min_ge){return 0;}
+  if (!min_ge){
+    return 0;
+  }
   word old_sz = min_ge->data;
   //print_avl(heap[3], 0, 2);
   word * deleted = _avl_delete(tr, (word*)min_ge, &avl_mem_cmp);
@@ -165,7 +166,7 @@ word * gc_alloc(word * heap, word n){
   word * addr = alloc(heap, n);
   if (!addr){return 0;}
   Object * gc_set = (Object*)h_info->gc_set;
-  word ** tr = (word**)&gc_set->contents; 
+  word ** tr = (word**)&gc_set->contents[0];
   word cond = avl_insert(heap, tr, (word)addr, &avl_basic_cmp);
   if (cond){
     free(heap, addr);
@@ -234,69 +235,69 @@ word * gc_realloc(word * heap, word * addr, word mem_sz){
 }
 
 
-void check_tc_tr(word ** s, word ** pending, word ** tr, word * tree) {
-  if (!tree){return;}
-  void check_tc(word ** s, word **  pending, word ** tr, word * obj);
-  AVL_Node * node = (AVL_Node*)tree;
-  AVL_Node * left = (AVL_Node*)node->left;
-  AVL_Node * right = (AVL_Node*)node->right;
-  word * obj = (word*)node->data - 1;
-  check_tc(s, pending, tr, (word*)node->data);
-  check_tc_tr(s, pending, tr, (word*)left);
-  check_tc_tr(s, pending, tr, (word*)right);
-  set_visited(obj, 0);
-}
+/* void check_tc_tr(word ** s, word ** pending, word ** tr, word * tree) { */
+/*   if (!tree){return;} */
+/*   void check_tc(word ** s, word **  pending, word ** tr, word * obj); */
+/*   AVL_Node * node = (AVL_Node*)tree; */
+/*   AVL_Node * left = (AVL_Node*)node->left; */
+/*   AVL_Node * right = (AVL_Node*)node->right; */
+/*   word * obj = (word*)node->data - 1; */
+/*   check_tc(s, pending, tr, (word*)node->data); */
+/*   check_tc_tr(s, pending, tr, (word*)left); */
+/*   check_tc_tr(s, pending, tr, (word*)right); */
+/*   set_visited(obj, 0); */
+/* } */
 
 
-void check_tc(word ** s, word ** pending, word ** tr, word * obj){
-  Object * o = (Object*)obj;
-  if (!obj){
-    print_cstr("Null Object ");
-    return;
-  }else if (visited(obj)){
-    return;
-  }else{
-    set_visited(obj, 1);
-  }
-  word * node = avl_find(s, (word)(obj + 1), &avl_basic_cmp);
-  if (!node){
-    node = avl_find(pending, (word)(obj + 1), &avl_basic_cmp);
-    if (node){
-      print_uint(visited(obj), 16, 0);spc(1);print_uint(get_tmp_rc(obj), 16, 0);spc(1);print_uint(get_rc(obj), 16, 0);spc(1);rec_obj_print(obj);nl(1);
-      return;
-    }else{
-      node = avl_find(tr, (word)(obj + 1), &avl_basic_cmp);
-      if (!node){
-	print_cstr("Missing Node ");rec_obj_print(obj);nl(1);
-      }else{
-	print_cstr("Wrong Node Location ");
-      }
-    }
-  }
-  word * type = (word*)o->type;
-  if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){
-    return;
-  }else if (!obj_cmp(type, set_type)){
-    check_tc_tr(s, pending, tr, (word*)o->contents[0]);
-  }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type) || !obj_cmp(type, subarray_type)){
-    for (word i = 0; i < o->size; ++i){
-      check_tc(s, pending, tr, (word*)o->contents[i]);
-    }
-  }else if (!obj_cmp(type, array_type)){
-    check_tc(s, pending, tr, (word*)o->contents[0]);
-  }
-}
+/* void check_tc(word ** s, word ** pending, word ** tr, word * obj){ */
+/*   Object * o = (Object*)obj; */
+/*   if (!obj){ */
+/*     print_cstr("Null Object "); */
+/*     return; */
+/*   }else if (visited(obj)){ */
+/*     return; */
+/*   }else{ */
+/*     set_visited(obj, 1); */
+/*   } */
+/*   word * node = avl_find(s, (word)(obj + 1), &avl_basic_cmp); */
+/*   if (!node){ */
+/*     node = avl_find(pending, (word)(obj + 1), &avl_basic_cmp); */
+/*     if (node){ */
+/*       print_uint(visited(obj), 16, 0);spc(1);print_uint(get_tmp_rc(obj), 16, 0);spc(1);print_uint(get_rc(obj), 16, 0);spc(1);rec_obj_print(obj);nl(1); */
+/*       return; */
+/*     }else{ */
+/*       node = avl_find(tr, (word)(obj + 1), &avl_basic_cmp); */
+/*       if (!node){ */
+/* 	print_cstr("Missing Node ");rec_obj_print(obj);nl(1); */
+/*       }else{ */
+/* 	print_cstr("Wrong Node Location "); */
+/*       } */
+/*     } */
+/*   } */
+/*   word * type = (word*)o->type; */
+/*   if (!obj_cmp(type, string_type) || !obj_cmp(type, num_type)){ */
+/*     return; */
+/*   }else if (!obj_cmp(type, set_type)){ */
+/*     check_tc_tr(s, pending, tr, (word*)o->contents[0]); */
+/*   }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type) || !obj_cmp(type, subarray_type)){ */
+/*     for (word i = 0; i < o->size; ++i){ */
+/*       check_tc(s, pending, tr, (word*)o->contents[i]); */
+/*     } */
+/*   }else if (!obj_cmp(type, array_type)){ */
+/*     check_tc(s, pending, tr, (word*)o->contents[0]); */
+/*   } */
+/* } */
 
 
-void checkall_tc(word **s, word ** pending, word ** tr, word * tree) {
-  if (!tree){return;}
-  AVL_Node * node = (AVL_Node*)tree;
-  AVL_Node * left = (AVL_Node*)node->left;
-  AVL_Node * right = (AVL_Node*)node->right;
-  check_tc(s, pending, tr, (word*)node->data - 1);
-  checkall_tc(s, pending, tr, (word*)left);
-  checkall_tc(s, pending, tr, (word*)right);
-}
+/* void checkall_tc(word **s, word ** pending, word ** tr, word * tree) { */
+/*   if (!tree){return;} */
+/*   AVL_Node * node = (AVL_Node*)tree; */
+/*   AVL_Node * left = (AVL_Node*)node->left; */
+/*   AVL_Node * right = (AVL_Node*)node->right; */
+/*   check_tc(s, pending, tr, (word*)node->data - 1); */
+/*   checkall_tc(s, pending, tr, (word*)left); */
+/*   checkall_tc(s, pending, tr, (word*)right); */
+/* } */
 
 
 void mark_tc_tr(word * heap, word * q, word * tree, word cond){
@@ -338,15 +339,12 @@ void _mark_tc(word * heap, word * q, word * obj, word cond){
     return;
   }else if (!obj_cmp(type, set_type)){
     mark_tc_tr(heap, q, (word*)o->contents[0], cond);
-  }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){
+  }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type) || !obj_cmp(type, subarray_type)){
     for (word i = 0; i < o->size; ++i){
       _mark_tc(heap, q, (word*)o->contents[i], cond);
     }
   }else if (!obj_cmp(type, array_type)){
-    Object * arr = (Object*)o->contents[0];
-    for (word i = 0; i < arr->size; ++i){
-      _mark_tc(heap, q, (word*)arr->contents[i], cond);
-    }
+    _mark_tc(heap, q, (word*)o->contents[0], cond);
   }
 }
 
@@ -406,23 +404,14 @@ word sweep(word * heap, word * obj, word * q){
     ret = 1;
   }else if (!obj_cmp(type, set_type)){
     ret += sweep_tr(heap, (word*)o->contents[0], q);
-  }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type)){
+  }else if (!obj_cmp(type, cell_type) || !obj_cmp(type, function_type) || !obj_cmp(type, subarray_type)){
     for (word i = 0; i < o->size; ++i){
       decrease_refcs((word*)o->contents[i]);
       ret += sweep(heap, (word*)o->contents[i], q);
     }
   }else if (!obj_cmp(type, array_type)){
-    Object * arr = (Object*)o->contents[0];
-    for (word i = 0; i < arr->size; ++i){
-      decrease_refcs((word*)arr->contents[i]);
-      ret += sweep(heap, (word*)arr->contents[i], q);
-    }
-
-    word * arr_mem = (word*)arr + 1;
-    avl_delete(heap, tr, (word)arr_mem, &avl_basic_cmp);
-    queue_push(heap, q, (word)arr);
-    /* void _object_delete(word * heap, word * arr); */
-    /* _object_delete(heap, (word*)arr); */
+    decrease_refcs((word*)o->contents[0]);
+    ret += sweep(heap, (word*)o->contents[0], q);
   }
 
   ret += 1;
@@ -448,11 +437,12 @@ void gc_collect(word * heap){
   hds * h_info = (hds*)heap;
   word * gc_set = h_info->gc_set;
   word ** tr = (word**)&((Object*)gc_set)->contents;
-  word * q = queue(heap);
-  _gc_collect(heap, *tr, q);
+  word * q0 = queue(heap);
+  _gc_collect(heap, *tr, q0);
 
   word * data;
-  while((data = (word*)queue_pop(heap, q))){
+  //check_gc(gc_set);
+  while((data = (word*)queue_pop(heap, q0))){
     //continue if obj has already been freed
     tr = (word**)&(((Object*)gc_set)->contents);
     AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(data+1), &avl_basic_cmp);
@@ -466,14 +456,18 @@ void gc_collect(word * heap){
       }
     }
     sweep(heap, data, q);
+    //queue_print(q);uart_puts("\n\n");
     while ((obj = (word*)queue_pop(heap, q))){
+      //queue_print(q);uart_puts("\n\n");
       object_delete(heap, (word*)((Object*)obj)->type);
+      //if (!obj_cmp(((Object*)obj)->type, function_type)){rec_obj_print(obj);nl(1);}
       free(heap, (word*)obj + 1);
       --h_info->gc_num_alloced;
     }
     free(heap, q);
   }
-  free(heap, q);
+  free(heap, q0);
+  //check_gc(gc_set);
 }
 
 

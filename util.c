@@ -1,5 +1,89 @@
 #include "config.h"
 
+#define MMIO_BASE       0x3F000000
+#define UART0_DR        ((volatile unsigned int*)(MMIO_BASE+0x00201000))
+#define UART0_FR        ((volatile unsigned int*)(MMIO_BASE+0x00201018))
+
+
+void uart_send(unsigned int c) {
+  while(*UART0_FR & 0x20){asm volatile("nop");}
+  *UART0_DR = c;
+}
+
+
+char uart_getc() {
+  char ch;
+  while(*UART0_FR & 0x10){asm volatile("nop");}
+  ch = (char)(*UART0_DR);
+  return ch == '\r' ? '\n' : ch;
+}
+
+
+void uart_puts(char * s) {
+  while(*s) {
+    if(*s=='\n'){
+      uart_send('\r');
+    }
+    uart_send(*s++);
+  }
+}
+
+
+void uart_print_uint(word val, word base){
+  uint16_t buf[65];
+  word len = uintn_to_str(buf, 65, val, base);
+  for (word i = 0; buf[i] && i < 65; ++i){
+    uart_send((uint8_t)buf[i]);
+  }
+}
+
+
+void uart_padded_uint(word val, word base, word padding){
+  uint16_t buf[sizeof(word)*8 + 1];
+  word max = sizeof(word)*8 + 1;
+  word len = uintn_to_str(buf, max, val, base);
+  for (word i = len; i < padding; ++i){
+    uart_puts("0");
+  }
+  for (word i = 0; buf[i] && i < max; ++i){
+    uart_send((uint8_t)buf[i]);
+  }
+}
+
+
+int uintn_to_str(uint16_t * buf, word buf_sz, word num, word base){
+  if (buf_sz < 2){return -1;}
+  if (num == 0){
+    buf[0] = '0';
+    buf[1] = '\0';
+    return 1;
+  }
+
+  word i = 0;
+  for (; num; ++i){
+    if (i >= buf_sz - 1){return -1;}
+    word digit = num % base;
+    digit += 48;
+    if (digit >= 58){
+      digit += 7;
+      if (digit >= 91){
+	digit += 6;
+      }
+    }
+    buf[i] = digit;
+    num /= base;
+  }
+
+  buf[i--] = '\0';
+  word retval = i;
+  for (int j = 0; j < i; ++j, --i){
+    uint16_t tmp = buf[j];
+    buf[j] = buf[i];
+    buf[i] = tmp;
+  }
+
+  return retval+1;
+}
 
 word max(sword x, sword y){
   return x < y ? y : x;
@@ -76,14 +160,7 @@ word memcmp(word * m1, word * m2, word len){
 
 
 word atomic_cas(word * ptr, word cmp, word new){
-  word output;
-  asm volatile ("movq %1, %%rax;"
-		"cmpxchg %2, (%3);"
-		"movq %%rax, %0;"
-		:"=r"(output)
-		:"r"(cmp), "r"(new), "r"(ptr)
-		:"%rax", "memory");
- return output;
+  return __sync_val_compare_and_swap(ptr, cmp, new);
 }
 
 
@@ -102,22 +179,8 @@ word abs(word x){
 
 
 word arithmetic_shift_right(word val, word n){
+  if (!(val & 1 << (sizeof(word)-1))){
+    return val >> n;
+  }
   return (val >> n) | (word)-1 << (sizeof(word)*8 - n);
 }
-
-
-void outb(uint16_t port, uint8_t val){
-    asm volatile ( "outb %0, %1" ::"a"(val),"Nd"(port));
-}
-
-
-EFI_STATUS get_char(EFI_INPUT_KEY * input_key){
-  EFI_STATUS Status = ST->ConIn->ReadKeyStroke(ST->ConIn, input_key);
-  return Status;
-}
-
-
-/* EFI_STATUS get_mouse_pos(){ */
-/*   EFI_STATUS Status; */
-/*   return Status; */
-/* } */

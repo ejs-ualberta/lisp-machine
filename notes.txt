@@ -1,24 +1,12 @@
-Old Compiler Calling convention:
-Caller pushes params left to right onto stack (without touching sp) and saves lr in the top position on the stack.
-All gp registers callee saved.
-Callee increments sp, saves fp and any registers it uses on its stack frame, then sets fp to point to its stack frame.
-Do stuff.
-Callee restores old fp and sp.
-Caller pops everything (including callee's args) from the stack, and restores lr.
+All asm must be written such that any space on the stack must be allocated before it is set or accessed. Non-conformity is an error. This has to do with how exceptions use the stack.
 
-New Compiler Calling convention:
-Caller increments sp to make room for params
-Caller pushes params left to right onto stack and then also lr
-All gp registers callee saved.
-Callee saves fp and any registers it uses on its stack frame, then sets fp to point to its stack frame.
-Do stuff.
-Callee restores old sp and fp and returns a value in r1d.
-Caller restores sp and lr.
+Functions save every register they use except r1d. Functions can take in one argument and return one value. In each scenario the value is stored in r1d. If more than one argument is necessary then a ptr to an array of the args is put in r1d.
 
-Kernel Calling Convention:
+Function calling convention:
 Caller prepares args. If single arg pass it in r1d, otherwise pass pointer to array of args in r1d.
-Caller increments sp by 1 and pushes lr. Note that if args are passed on the stack, sp may need to be incremented more.
+Caller increments sp by 1 and pushes lr. Note that if args are passed on the stack, sp may need to be incremented more. The lr register is updated to point to the instruction after the function call.
 Callee saves fp and any registers it uses on its stack frame, then sets fp to point to its stack frame.
 Do stuff.
 Callee restores old sp and fp and returns a value in r1d.
 Caller restores sp and lr.
+

@@ -2,7 +2,6 @@
 
 //NOTE: Some of the datastructures here depend on the memory allocator leaving the size of the allocated memory just before the mem.
 
-// TODO: Refcount attributes, e.g. cyclic (also add in manual ability to deallocate or cycle check)?
 word set_keyfind_cmp(word * kvp, word * key);
 
 word * num_type;
@@ -38,30 +37,29 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
 
 
 word * object_append_word(word * heap, word * obj, word data){
-  Object * o = (Object*)obj;
-  if (!o){return 0;}
+  Object * o = 0;
+  if (!obj){return 0;}
+  o = (Object*)obj;
   word max_sz = o->max_sz - obj_sz;
+  //print_cstr("Before: ");print_uint(o, 16, 0);nl(1);obj_print(o);nl(1);
   if (o->size >= max_sz){
     o = (Object*)(gc_realloc(heap, obj+1, obj_sz + o->size + o->size/2 + 1) - 1);
-    if (!o){return 0;}
+    //if ((word*)o == (word*)0x410d08){while(1);}
+    if (!((word*)o+1)){return 0;}
   }
-  o->contents[o->size++] = (word)data;
+  o->contents[o->size] = (word)data;
+  ++o->size;
+  //print_cstr("After:\n");obj_print(o);nl(1);
   return (word*)o;
 }
 
 
 word * object_append(word * heap, word * obj, word * data){
-  Object * o = (Object*)obj;
-  Object * d = (Object*)data;
-  if (!o || !d){return 0;}
+  Object * d = 0;
+  if (!obj || !data){return 0;}
+  d = (Object*)data;
   ++d->refcount;
-  word max_sz = o->max_sz - obj_sz;
-  if (o->size >= max_sz){
-    o = (Object*)(gc_realloc(heap, obj+1, obj_sz + o->size + o->size/2 + 1) - 1);
-    if (!o){return 0;}
-  }
-  o->contents[o->size++] = (word)data;
-  return (word*)o;
+  return (word*)object_append_word(heap, obj, (word)data);
 }
 
 
@@ -76,69 +74,69 @@ word * object_expand(word * heap, word * obj, word new_sz){
 void obj_print(word * obj){
   Object * o = (Object*)obj;
   Object * type = (Object*)o->type;
-  print_cstr("maxs: ");print_uint(o->max_sz, 16, 0);nl(1);
-  print_cstr("refc: ");print_uint(o->refcount, 16, 0);nl(1);
-  print_cstr("size: ");print_uint(o->size, 16, 0);nl(1);
-  print_cstr("type: ");
+  uart_puts("maxs: ");uart_print_uint(o->max_sz, 16);uart_puts("\n");
+  uart_puts("refc: ");uart_print_uint(o->refcount, 16);uart_puts("\n");
+  uart_puts("size: ");uart_print_uint(o->size, 16);uart_puts("\n");
+  uart_puts("type: ");
   for (word i = 0; i < type->size * sizeof(word); ++i){
-    print_cstr((char*)(type->contents) + i);
+    uart_puts((char*)(type->contents) + i);
   }
-  nl(1);print_cstr("cnts: ");
+  uart_puts("\n");uart_puts("cnts: ");
   for (word i = 0; i < o->size; ++i){
-    print_uint(o->contents[i], 16, 0);spc(1);
+    uart_print_uint(o->contents[i], 16);uart_puts(" ");
   }
-  nl(1);
+  uart_puts("\n");
 }
 
 
 void rec_obj_print(word * obj){
   Object * o = (Object*)obj;
   if (!o){
-    print_cstr("Null ");
+    uart_puts("Null ");
     return;
   }
   if (!o->type){
-    print_cstr("No Type ");
+    uart_puts("No Type ");
     return;
   }else if (!obj_cmp((word*)o->type, string_type)){
     if (!o->size){
-      print_cstr("''");
+      uart_puts("''");
     }
     for (word i = 0; i < o->size*sizeof(word); ++i){
-      print_cstr((char*)(o->contents) + i);
-    }spc(1);
+      uart_puts((char*)(o->contents) + i);
+    }uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, array_type)){
-    Object * obj = (Object*)o->contents[0];
-    print_cstr("[");spc(1);
-    for (word i = 0; i < obj->size; ++i){
-      rec_obj_print((word*)obj->contents[i]);
+    Object * o1 = (Object*)o->contents[0];
+    uart_puts("[");uart_puts(" ");
+    for (word i = 0; i < o1->size; ++i){
+      rec_obj_print((word*)o1->contents[i]);
     }
-    print_cstr("]");spc(1);
+    uart_puts("]");uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, num_type)){
-    print_num(obj);spc(1);
+    print_num(obj);uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, set_type)){
-    print_cstr("{");spc(1);
-    print_set(obj);spc(1);
-    print_cstr("}");spc(1);
+    uart_puts("{");uart_puts(" ");
+    print_set(obj);uart_puts(" ");
+    uart_puts("}");uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, cell_type)){
-    print_cstr("(");spc(1);
+    uart_puts("(");uart_puts(" ");
     rec_obj_print((word*)o->contents[0]);
     rec_obj_print((word*)o->contents[1]);
-    print_cstr(")");spc(1);
+    uart_puts(")");uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, function_type)){
     //print_set((word*)o->contents[0]);
-    print_cstr("function [");spc(1);
+    uart_puts("<");uart_puts(" ");
     rec_obj_print((word*)o->contents[1]);
     rec_obj_print((word*)o->contents[2]);
-    print_cstr("]");spc(1);
+    uart_puts(">");uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, subarray_type)){
-    print_cstr("subarray [");spc(1);
+    uart_puts("subarray [");uart_puts(" ");;
     for (word i = 0; i < o->size; ++i){
       rec_obj_print((word*)o->contents[i]);
     }
-    print_cstr("]");spc(1);
+    uart_puts("]");uart_puts(" ");
   }else{
-    print_cstr("???");spc(1);
+    uart_puts("???");uart_puts(" ");
   }
 }
 
@@ -161,7 +159,7 @@ void object_delete(word * heap, word * obj){
       _object_delete(heap, obj);
     }else if(!obj_cmp(type, set_type)){
       set_delete(heap, obj);
-    }else if(!obj_cmp(type, cell_type)){
+    }else if(!obj_cmp(type, cell_type) || !obj_cmp(type, function_type) || !obj_cmp(type, subarray_type)){
       for (word i = 0; i < o->size; ++i){
 	object_delete(heap, (word*)(o->contents[i]));
       }
@@ -176,8 +174,14 @@ void object_delete(word * heap, word * obj){
 
 word * obj_array(word * heap, word size){
   word * arr = object(heap, subarray_type, size, (word*)0, 0);
+  if (!arr){return (word*)0;}
   ++((Object*)arr)->refcount;
-  word * ret = object(heap, array_type, 1, (word*)&arr, 1);
+  word * ret = object(heap, array_type, 1, 0, 0);
+  if (!ret){
+    object_delete(heap, arr);
+    return (word*)0;
+  }
+  ((Object*)ret)->contents[0] = (word)arr;
   return ret;
 }
 
@@ -206,7 +210,7 @@ void set_obj_array_idx(word * arr, word idx, word * val){
 }
 
 
-void obj_array_delete(word * heap, word * obj){
+void obj_array_delete(word * heap, word * obj) {
   Object * o = (Object*)obj;
   Object * arr = (Object*)(o->contents[0]);
   _object_delete(heap, obj);
@@ -229,6 +233,15 @@ word * array(word * heap, word size, word item_sz){
   arr->used_sz = 0;
   arr->item_sz = item_sz;
   return mem + Array_bsz;
+}
+
+
+word * array_resize(word * heap, word * arr, word new_size){
+  word * mem_addr = arr - Array_bsz;
+  Array * handle = (Array*)(mem_addr - 1);
+  mem_addr = realloc(heap, mem_addr, Array_bsz + new_size * handle->item_sz);
+  if (!mem_addr){return (word*)0;}
+  return mem_addr + Array_bsz;
 }
 
 
@@ -285,7 +298,7 @@ void array_delete(word * heap, word * arr){
 
 word array_capacity(word * arr){
   Array * array = (Array*)(arr - Array_bsz - 1);
-  return array->mem_sz - Array_bsz - 1;
+  return (array->mem_sz - Array_bsz - 1) / array->item_sz;
 }
 
 
@@ -312,7 +325,6 @@ word balance_factor(word * nd){
   word bf = get_balance_factor(nd);
   //if (!bf){return 0;}
   //3 -> 0, 1 -> +1, 2 -> -1
-  //return (bf/3) ? 0 : nat_pow(-1, (bf % 3) - 1);
   if (bf == 1){
     return bf;
   }
@@ -668,7 +680,7 @@ word _avl_insert(word ** tr, word * nd, word data, word (*cmp)(word*, word*)){
 
 
 word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*)){
-  AVL_Node ** tree = (AVL_Node**)tr;
+  //AVL_Node ** tree = (AVL_Node**)tr;
   word * node = alloc(heap, sizeof(AVL_Node)/sizeof(word));
   if (!node){
     return 1;
@@ -697,7 +709,7 @@ word * _avl_delete(word ** tr, word * node, word (*cmp)(word*, word*)){
   }
 
   AVL_Node * child = 0;
-  word bf = 0;
+  //word bf = 0;
   word direction = 0;
   // Will start rebalancing tree from parent later.
   AVL_Node * parent;
@@ -820,21 +832,21 @@ word avl_mem_cmp(word * n1, word * n2){
 }
 
 
-void _print_avl(word * tree, word space, word inc){
-  AVL_Node * node = (AVL_Node*)tree;
-  if (!tree){return;}
-  spc(space);print_uint(tree[0] & 3, 16, 2);//nl(1);
-  spc(1);print_uint(tree[3], 16, 2);nl(1);
-  //spc(1);print_uint(tree, 16, 8);nl(1);
-  _print_avl((word*)(node->right), space + inc, inc);
-  _print_avl((word*)(node->left), space, inc);
-}
+/* void _print_avl(word * tree, word space, word inc){ */
+/*   AVL_Node * node = (AVL_Node*)tree; */
+/*   if (!tree){return;} */
+/*   spc(space);print_uint(tree[0] & 3, 16, 2);//nl(1); */
+/*   spc(1);print_uint(tree[3], 16, 2);nl(1); */
+/*   //spc(1);print_uint(tree, 16, 8);nl(1); */
+/*   _print_avl((word*)(node->right), space + inc, inc); */
+/*   _print_avl((word*)(node->left), space, inc); */
+/* } */
 
 
-void print_avl(word * tree, word space, word inc){
-  if (!tree){print_uint(0, 16, 2);nl(1);}
-  _print_avl(tree, space, inc);
-}
+/* void print_avl(word * tree, word space, word inc){ */
+/*   if (!tree){print_uint(0, 16, 2);nl(1);} */
+/*   _print_avl(tree, space, inc); */
+/* } */
 
 
 word * check_balance_factors(word * tr){
@@ -868,45 +880,296 @@ word * check_balance_factors(word * tr){
 }
 
 
-void init_types(word * global_heap_start){
-  word str_str[3] = {'s', 't', 'r'};
-  string_type = object(global_heap_start , (word*)0, 3, str_str, 3);
+word * queue(word * heap){
+  Queue * q = (Queue*)alloc(heap, sizeof(Queue)/sizeof(word));
+  if (!q){return (word*)q;}
+  q->first = 0;
+  q->last = 0;
+  return (word*)q;
+}
+
+
+word * queue_push(word * heap, word * queue, word data){
+  Link * link = (Link*)alloc(heap, sizeof(Link)/sizeof(word));
+  if (!link){return (word*)link;}
+  Queue * q = (Queue*)queue;
+  link->data = data;
+  link->next = (word)(q->first);
+  link->prev = 0;
+  if (!q->first){q->last = (word)link;}
+  else{((Link*)(q->first))->prev = (word)link;}
+  q->first = (word)link;
+  return (word*)link;
+}
+
+
+word queue_last(word * heap, word * queue){
+  Queue * q = (Queue*)queue;
+  Link * last = (Link*)(q->last);
+  if (!last){return 0;}
+  q->last = last->prev;
+  if (!q->last){q->first = 0;}
+  else{((Link*)(last->prev))->next = 0;}
+  word data = last->data;
+  free(heap, (word*)last);
+  return data;
+}
+
+
+word queue_pop(word * heap, word * queue){
+  Queue * q = (Queue*)queue;
+  Link * first = (Link*)(q->first);
+  if (!first){return 0;}
+  q->first = first->next;
+  if (!q->first){q->last = 0;}
+  else{((Link*)(first->next))->prev = 0;}
+  word data = first->data;
+  free(heap, (word*)first);
+  return data;
+}
+
+
+void queue_print(word * queue){
+  Queue * q = (Queue*)queue;
+  Link * l = (Link*)q->first;
+  while (l){
+    uart_print_uint(l->next, 16);uart_puts(" ");
+    uart_print_uint(l->prev, 16);uart_puts(" ");
+    rec_obj_print((word*)l->data);uart_puts("\n");
+    l = (Link*)l->next;
+  };
+}
+
+
+word * ring_buf(word * heap, word size, word item_sz){
+  if (size <= 1){return 0;}
+  RingBuf * rb = (RingBuf*)alloc(heap, sizeof(RingBuf)/sizeof(word));
+  if (!rb){return 0;}
+  word * arr = array(heap, size, item_sz);
+  if (!arr){
+    free(heap, (word*)rb);
+    return 0;
+  }
+  rb->buf = arr;
+  rb->head = 0;
+  rb->tail = 0;
+  return (word*)rb;
+}
+
+
+word ring_buf_isempty(word * ringbuf){
+  RingBuf * rb = (RingBuf*)ringbuf;
+  return (word)(rb->head == rb->tail);
+}
+
+
+word ring_buf_isfull(word * ringbuf){
+  RingBuf * rb = (RingBuf*)ringbuf;
+  word sz = array_capacity((word*)rb->buf);
+  return (rb->tail + (sz - 1)) % sz == rb->head;
+}
+
+
+word ring_buf_item_sz(word * ringbuf){
+  RingBuf * rb = (RingBuf*)ringbuf;
+  return ((Array*)(rb->buf - Array_bsz - 1))->item_sz;
+}
+
+
+void ring_buf_add(word * ringbuf, word * item){
+  RingBuf * rb = (RingBuf*)ringbuf;
+  word sz = array_capacity((word*)rb->buf);
+  word item_sz = ring_buf_item_sz(ringbuf);
+  word * ptr = (word*)rb->buf + item_sz * rb->head;
+  for (word i = 0; i < item_sz; ++i){
+    ptr[i] = item[i];
+  }
+  ++rb->head;
+  if (rb->head >= sz){rb->head = 0;}
+}
+
+
+void ring_buf_pop(word * ringbuf, word * item){
+  RingBuf * rb = (RingBuf*)ringbuf;
+  word sz = array_capacity((word*)rb->buf);
+  word item_sz = ring_buf_item_sz(ringbuf);
+  word * ptr = (word*)rb->buf + item_sz * rb->tail;
+  if (item){
+    for (word i = 0; i < item_sz; ++i){
+      item[i] = ptr[i];
+    }
+  }
+  ++rb->tail;
+  if (rb->tail >= sz){rb->tail = 0;}
+}
+
+
+void ring_buf_delete(word * heap, word * ringbuf){
+  RingBuf * rb = (RingBuf*)ringbuf;
+  array_delete(heap, rb->buf);
+  free(heap, ringbuf);
+}
+
+
+void ring_buf_print(word * ring_buf){
+  RingBuf * rb = (RingBuf*)ring_buf;
+  uart_print_uint(ring_buf_isfull((word*)rb), 16);uart_puts(" ");
+  uart_print_uint(rb->head, 16);uart_puts(" ");
+  uart_print_uint(rb->tail, 16);uart_puts("\n");
+  word sz = array_capacity(rb->buf);
+  for (word i = rb->tail; i != rb->head; ++i, i %= sz){
+    for (word j = 0; j < 2; ++j){
+      uart_print_uint(rb->buf[i*2+j], 16);uart_puts(" ");
+    }
+  }uart_puts("\n");
+}
+
+
+word * concurrent_fifo(word * heap, word primary_capacity, word secondary_capacity, word item_sz){
+  ConcurrentFIFO * cf = (ConcurrentFIFO*)alloc(heap, sizeof(ConcurrentFIFO)/sizeof(word));
+  if (!cf){goto error_0;}
+  cf->A = (RingBuf*)ring_buf(heap, primary_capacity, item_sz + 1);
+  if (!cf->A){goto error_1;}
+  cf->B = (RingBuf*)ring_buf(heap, secondary_capacity, item_sz + 1);
+  if (!cf->B){goto error_2;}
+  cf->a_lck = 0;
+  cf->b_lck = 0;
+  cf->tag = 0;
+  cf->curr_tag = 0;
+  return (word*)cf;
+ error_2: free(heap, (word*)(cf->A));
+ error_1: free(heap, (word*)cf);
+ error_0: return 0;
+}
+
+
+word concurrent_fifo_isempty(word * c_fifo){
+  ConcurrentFIFO * cf = (ConcurrentFIFO*)c_fifo;
+  return ring_buf_isempty((word*)cf->A) && ring_buf_isempty((word*)cf->B);
+}
+
+
+word concurrent_fifo_isfull(word * c_fifo){
+  ConcurrentFIFO * cf = (ConcurrentFIFO*)c_fifo;
+  return ring_buf_isfull((word*)cf->A) && ring_buf_isfull((word*)cf->B);
+}
+
+
+word concurrent_fifo_item_sz(word * c_fifo){
+  ConcurrentFIFO * cf = (ConcurrentFIFO*)c_fifo;
+  return ring_buf_item_sz((word*)cf->A);
+}
+
+
+word concurrent_fifo_add(word * c_fifo, word * item){
+  ConcurrentFIFO * cf = (ConcurrentFIFO*)c_fifo;
+  word item_sz = ring_buf_item_sz((word*)cf->A);
+  word tagged_item[item_sz];
+  tagged_item[0] = (cf->tag)++;
+  --item;
+  for (word i = 1; i < item_sz; ++i){
+    tagged_item[i] = item[i];
+  }
+
+  if (!cf->a_lck && !ring_buf_isfull((word*)cf->A)){
+      ring_buf_add((word*)cf->A, tagged_item);
+      return 0;
+  }else if (!cf->b_lck && !ring_buf_isfull((word*)cf->B)){
+      ring_buf_add((word*)cf->B, tagged_item);
+      return 0;
+  }
+  // Only fail if all the buffers are full/inaccessible at the same time.
+  return 1;
+}
+
+
+word concurrent_fifo_pop(word * c_fifo, word * item){
+  ConcurrentFIFO * cf = (ConcurrentFIFO*)c_fifo;
+  word item_sz = ring_buf_item_sz((word*)cf->A);
+  word tagged_item[item_sz];
+  RingBuf * A = (RingBuf*)cf->A;
+  RingBuf * B = (RingBuf*)cf->B;
+  word * A_ptr = (word*)A->buf + item_sz * A->tail;
+  word * B_ptr = (word*)B->buf + item_sz * B->tail;
+  word c_tag = cf->curr_tag;
+
+  if (!ring_buf_isempty((word*)A) && c_tag == A_ptr[0]){
+    cf->a_lck = 1;
+    ring_buf_pop((word*)A, tagged_item);
+    cf->a_lck = 0;
+  }else if (!ring_buf_isempty((word*)B) && c_tag == B_ptr[0]){
+    cf->b_lck = 1;
+    ring_buf_pop((word*)B, tagged_item);
+    cf->b_lck = 0;
+  }else{
+    return 1;
+  }
+
+  --item;
+  for (word i = 1; i < item_sz; ++i){
+    item[i] = tagged_item[i];
+  }
+  ++(cf->curr_tag);
+  return 0;
+}
+
+
+void concurrent_fifo_delete(word * heap, word * c_fifo){
+  ConcurrentFIFO * cf = (ConcurrentFIFO*)c_fifo;
+  ring_buf_delete(heap, (word*)cf->A);
+  ring_buf_delete(heap, (word*)cf->B);
+  free(heap, c_fifo);
+}
+
+
+void concurrent_fifo_print(word * c_fifo){
+  ConcurrentFIFO * cf = (ConcurrentFIFO*)c_fifo;
+  uart_puts("\n");
+  uart_print_uint(cf->a_lck, 16);uart_puts("  ");
+  uart_print_uint(cf->b_lck, 16);uart_puts("  ");
+  uart_print_uint(cf->curr_tag, 16);uart_puts("  ");
+  uart_print_uint(cf->tag, 16);uart_puts("  \n");
+  ring_buf_print((word*)cf->A);
+  ring_buf_print((word*)cf->B);
+}
+
+
+void init_types(word * heap){
+  string_type = cstr_to_string(heap, "str");
   ((Object *)string_type)->type = (word)string_type;
   ((Object *)string_type)->refcount += 2;
-  word num_str[3] = {'n', 'u', 'm'};
-  num_type = object(global_heap_start, string_type, 3, num_str, 3);
+  num_type = cstr_to_string(heap, "num");
   ++((Object *)num_type)->refcount;
-  word arr_str[3] = {'a', 'r', 'r'};
-  array_type = object(global_heap_start, string_type, 3, arr_str, 3);
+  array_type = cstr_to_string(heap, "arr");
   ++((Object *)array_type)->refcount;
-  word sar_str[3] = {'s', 'a', 'r'};
-  subarray_type = object(global_heap_start, string_type, 3, sar_str, 3);
+  subarray_type = cstr_to_string(heap, "sar");
   ++((Object *)subarray_type)->refcount;
-  word set_str[3] = {'s', 'e', 't'};
-  set_type = object(global_heap_start, string_type, 3, set_str, 3);
+  set_type = cstr_to_string(heap, "set");
   ++((Object *)set_type)->refcount;
-  word fun_str[3] = {'f', 'u', 'n'};
-  function_type = object(global_heap_start, string_type, 3, fun_str, 3);
+  function_type = cstr_to_string(heap, "fun");
   ++((Object *)function_type)->refcount;
-  word cel_str[3] = {'c', 'e', 'l'};
-  cell_type = object(global_heap_start, string_type, 3, cel_str, 3);
+  cell_type = cstr_to_string(heap, "cel");
   ++((Object *)cell_type)->refcount;
   /* word native_str[3] = {'n', 't', 'v'}; */
-  /* native_type = object(global_heap_start, string_type, 3, native_str, 3); */
+  /* native_type = object(heap, string_type, 3, native_str, 3); */
   /* word asm_str[3] = {'a', 's', 'm'}; */
-  /* asm_type = object(global_heap_start, string_type, 3, asm_str, 3); */
+  /* asm_type = object(heap, string_type, 3, asm_str, 3); */
 }
 
 
 //NOTE: From this point forward only use if types are initialized.
 
 word * pair(word * heap, word * obj1, word * obj2){
-  word contents[2] = {(word)obj1, (word)obj2};
   Object * o1 = (Object *)obj1;
   Object * o2 = (Object *)obj2;
+  Object * obj = (Object*)object(heap, cell_type, 2, 0, 0);
+  if (!obj){return 0;}
+  obj->size = 2;
+  obj->contents[0] = (word)obj1;
+  obj->contents[1] = (word)obj2;
   o1->refcount += 1;
   o2->refcount += 1;
-  return object(heap, cell_type, 2, contents, 2);
+  return (word*)obj;
 }
 
 
@@ -1072,55 +1335,6 @@ void set_delete(word * heap, word * set){
 }
 
 
-word * queue(word * heap){
-  Queue * q = (Queue*)alloc(heap, sizeof(Queue)/sizeof(word));
-  if (!q){return (word*)q;}
-  q->first = 0;
-  q->last = 0;
-  return (word*)q;
-}
-
-
-word * queue_push(word * heap, word * queue, word data){
-  Link * link = (Link*)alloc(heap, sizeof(Link)/sizeof(word));
-  if (!link){return (word*)link;}
-  Queue * q = (Queue*)queue;
-  link->data = data;
-  link->next = (word)(q->first);
-  link->prev = 0;
-  if (!q->first){q->last = (word)link;}
-  else{((Link*)(q->first))->prev = (word)link;}
-  q->first = (word)link;
-  return (word*)link;
-}
-
-
-word queue_last(word * heap, word * queue){
-  Queue * q = (Queue*)queue;
-  Link * last = (Link*)(q->last);
-  if (!last){return 0;}
-  q->last = last->prev;
-  if (!q->last){q->first = 0;}
-  else{((Link*)(last->prev))->next = 0;}
-  word data = last->data;
-  free(heap, (word*)last);
-  return data;
-}
-
-
-word queue_pop(word * heap, word * queue){
-  Queue * q = (Queue*)queue;
-  Link * first = (Link*)(q->first);
-  if (!first){return 0;}
-  q->first = first->next;
-  if (!q->first){q->last = 0;}
-  else{((Link*)(first->next))->prev = 0;}
-  word data = first->data;
-  free(heap, (word*)first);
-  return data;
-}
-
-
 /* word b16_to_word(word * num, word length){ */
 /*   word neg = 0; */
 /*   if (length){ */
@@ -1151,6 +1365,15 @@ word queue_pop(word * heap, word * queue){
 
 /*   return final_num; */
 /* } */
+
+
+word * cstr_to_string(word * heap, char * str){
+  Object * obj = (Object*)object(heap, string_type, 8, 0, 0);
+  for (word i = 0; str[i]; ++i){
+    obj = (Object*)object_append_word(heap, (word*)obj, (word)str[i]);
+  }
+  return (word*)obj;
+}
 
 
 word adc(word x, word y, word * result){
@@ -1188,7 +1411,7 @@ word * num_add(word * heap, word * num1, word * num2){
   word n1_sgn = n1->contents[n1_sz-1] >> (sizeof(word)*8 - 1);
   word n2_sgn = n2->contents[n2_sz-1] >> (sizeof(word)*8 - 1);
 
-  // Create an obj of size n1_sz + 1 because n1 is now the "longest" number and may have to add a sign word.
+  // Create an obj of size n1_sz + 1 because n1 is now the "longest" number.
   Object * result = (Object*)object(heap, num_type, n1_sz + 1, 0, 0);
   result->size = n1_sz;
   word carry = 0;
@@ -1202,6 +1425,7 @@ word * num_add(word * heap, word * num1, word * num2){
   if (n2_sgn){
     padding = (word)-1;
   }
+  //TODO: if shorter number is positive can exit earlier
   for (word i = n2_sz; i < n1_sz; ++i){
     carry = adc(n1->contents[i], carry, result->contents + i);
     carry += adc(result->contents[i], padding, result->contents + i);
@@ -1303,7 +1527,6 @@ word * num_shift_right(word * heap, word * num, word shf){
 }
 
 
-// TODO: improve this to check bit length, then if that fails iterate backwards through the numbers like in num_div
 word num_le(word * heap, word * num1, word * num2){
   num_negate(num2);
   word * num3 = num_add(heap, num1, num2);
@@ -1474,206 +1697,10 @@ word * num_mul(word * heap, word * num1, word * num2){
 
   if (n1_sgn){num_negate((word*)n1);}
   if (n2_sgn){num_negate((word*)n2);}
-  for (word i = res_sz - 1; i > 1 && !result->contents[i-1]; --i){--result->size;}
   if (res_sgn){num_negate((word*)result);}
+  for (word i = res_sz - 1; i > 1 && (result->contents[i-1] == res_sgn); --i){--result->size;}
   return (word *)result;
 }
-
-//TODO: find a place for this function and add it to config.h
-word nlz(word n) {
-  word idx = sizeof(word)*8 >> 1;
-  word sz = sizeof(word)*8 >> 2;
-  if (!n){return sizeof(word)*8;}
-  else if (n == 1){return sizeof(word)*8-1;}
-  while (sz){
-    word n_idx = n >> idx;
-    if (n_idx == 1){return sizeof(word)*8 - idx - 1;}
-    if (n_idx){
-      idx += sz;
-    }else{
-      idx -= sz;
-    }
-    sz >>= 1;
-  }
-  return sizeof(word)*8 - idx - 1;
-}
-
-
-word bit_length(word * num){
-  Object * n = (Object*)num;
-  word sz = n->contents[n->size-1] ? (n->size-1) : (n->size - 2);
-  word word_sz = sizeof(word)*8;
-  return (sz+1)*word_sz - nlz(n->contents[sz]);
-}
-
-
-word * num_div(word * heap, word * num1, word * num2){
-  Object * _n = (Object*)num1;
-  Object * d = (Object*)num2;
-  Object * n = (Object*)object(heap, num_type, _n->size, _n->contents, _n->size);
-  ++n->refcount;
-  word n_sgn = n->contents[n->size-1];
-  word d_sgn = d->contents[d->size-1];
-  word acc_sgn = n_sgn ^ d_sgn;
-
-  if (n_sgn){num_negate((word*)n);}
-  if (d_sgn){num_negate((word*)d);}
-
-  word nb = bit_length((word*)n);
-  word db = bit_length((word*)d);
-
-  // Return 0 if abs(n) < abs(d)
-  if (nb < db || !db){
-    goto error;
-  }else if (nb == db){
-    for (word i = n->size-1; i >= 0; --i){
-      if (d->contents[i] > n->contents[i]){
-	goto error;
-      }
-    }
-  }
-
-  Object * acc = (Object*)object(heap, num_type, n->size - d->size + 2, 0, 0);
-  acc->size = n->size - d->size + 2;
-  for (word i = 0; i < acc->size; ++i){acc->contents[i] = 0;}
-  word offset = nb-db-1;
-  Object * d_apx = (Object*)object(heap, num_type, n->size, d->contents, d->size);
-  ++d_apx->refcount;
-  Object * apx = (Object*)object(heap, num_type, n->size, 0, 0);
-  ++apx->refcount;
-  apx->contents[0] = 1;
-  apx->contents[1] = 0;
-  apx->size = 2;
-  apx = (Object*)num_shift_left(heap, (word*)apx, offset);
-  d_apx = (Object*)num_shift_left(heap, (word*)d_apx, offset);
-
-  while (1){
-    if (nb < db){goto end;}
-    else if (nb == db){
-      for (word i = n->size-1; i > 0; --i){
-	if (d->contents[i-1] > n->contents[i-1]){goto end;}
-      }
-      // return acc + 1
-      word carry = 1;
-      for (word i = 0; carry && i < acc->size; ++i){
-	carry = adc(acc->contents[i], carry, acc->contents + i);
-      }
-      goto end;
-    }
-
-    // Add apx to acc
-    word carry = 0;
-    for (word i = offset/(sizeof(word)*8); i < acc->size; ++i){
-      carry = adc(acc->contents[i], carry, acc->contents + i);
-      carry += adc(acc->contents[i], apx->contents[i], acc->contents + i);
-      if (!carry){break;}
-    }
-
-    // sub d_apx from n
-    carry = 1;
-    for (word i = 0; i < n->size-1; ++i){
-      carry = adc(n->contents[i], carry, n->contents + i);
-      word val = i > d_apx->size-1 ? (word)-1 : ~(d_apx->contents[i]);
-      carry += adc(n->contents[i], val, n->contents + i);
-    }
-    for (word i = n->size - 1; i > 1 && !n->contents[i-1]; --i){--n->size;}
-
-    nb = bit_length((word*)n);
-    word off = nb-db-1;
-    apx = (Object*)num_shift_right(heap, (word*)apx, offset - off);
-    d_apx = (Object*)num_shift_right(heap, (word*)d_apx, offset - off);
-    offset = off;
-  }
-
- end:
-  for (word i = acc->size - 1; i > 1 && !acc->contents[i-1]; --i){--acc->size;}
-  if (d_sgn){num_negate((word*)d);}
-  if (acc_sgn){num_negate((word*)acc);}
-  object_delete(heap, (word*)n);
-  object_delete(heap, (word*)d_apx);
-  object_delete(heap, (word*)apx);
-  return (word*)acc;
-
- error:
-  if (d_sgn){num_negate((word*)d);}
-  object_delete(heap, (word*)n);
-  return word_to_num(heap, 0);
-}
-
-
-/* word * num_div(word * heap, word * num1, word * num2){ */
-/*   Object * n1 = (Object*)num1; */
-/*   Object * n2 = (Object*)num2; */
-/*   word n1_sz = n1->size; */
-/*   word n2_sz = n2->size; */
-/*   word res_sz = n1_sz < n2_sz ? 2 : n1_sz - n2_sz + 2; */
-/*   word n1_sgn = n1->contents[n1_sz-1]; */
-/*   word n2_sgn = n2->contents[n2_sz-1]; */
-/*   word res_sgn = n1_sgn ^ n2_sgn; */
-
-/*   // Make both numbers positive */
-/*   if (n1_sgn){num_negate((word*)n1);} */
-/*   if (n2_sgn){num_negate((word*)n2);} */
-
-/*   // Return 0 when the numerator is zero, on division by 0, and when the abs value of the numerator is less than the abs value of the denominator. */
-/*   if ((n1_sz == 2 && !n1->contents[0]) || (n1_sz == 2 && !n1->contents[0]) || num_le(heap, num1, num2)){ */
-/*     word buf[2]; */
-/*     buf[0] = buf[1] = 0; */
-/*     // Return both numbers to their original states */
-/*     if (n1_sgn){num_negate((word*)n1);} */
-/*     if (n2_sgn){num_negate((word*)n2);} */
-/*     return object(heap, num_type, 2, buf, 2); */
-/*   } */
-
-/*   Object * result = (Object*)object(heap, num_type, res_sz, 0, 0); */
-/*   result->size = res_sz; */
-/*   for (word i = 0; i < res_sz; ++i){result->contents[i] = 0;} */
-
-/*   if (n1_sgn){num_negate((word*)n1);} */
-/*   if (n2_sgn){num_negate((word*)n2);} */
-/*   for (word i = res_sz - 1; i > 1 && !result->contents[i-1]; --i){--result->size;} */
-/*   if (res_sgn){num_negate((word*)result);} */
-/*   return (word *)result; */
-/* } */
-
-
-/* //TODO: For this make a version of add that mutates the obj passed in */
-/* void karatsuba_split_at(word *heap, word *num, word ** low, word ** high){ */
-/*   Object * n = (Object*)num; */
-/*   word l_sz = n->size * sizeof(word) * 4; */
-/*   Object * l = object(heap, num_type, l_sz, ); */
-/* } */
-
-
-/* word * karatsuba_mul_nat(word * heap, word * num1, word * num2, word){ */
-/*   // Do not use if one or both of the numbers is <= 0, use karatsuba_mul */
-/*   Object * n1 = (Object*)num1; */
-/*   Object * n2 = (Object*)num2; */
-/*   if ((n1->size <= 2 && n1->contents[0] < 2)){ */
-/*     return object(heap, num_type, n2->size, n2->contents, n2->size); */
-/*   }else if (n2->size <= 2 && n2->contents[0] < 2){ */
-/*     return object(heap, num_type, n1->size, n1->contents, n1->size); */
-/*   } */
-
-/*   word * low1; */
-/*   word * high1; */
-/*   karatsuba_split_at(heap, num1, &low1, &high1); */
-/*   word * low2; */
-/*   word * high2; */
-/*   karatsuba_split_at(heap, num2, &low2, &high2); */
-
-/*   word * lm = karatsuba_mul_nat(heap, low1, low2); */
-/*   word * lh1 = num_add(heap, low1, high1); */
-/*   word * lh2 = num_add(heap, low2, high2); */
-
-/*   object_delete(heap, low1); */
-/*   object_delete(heap, low2); */
-/*   object_delete(heap, high1); */
-/*   object_delete(heap, high2); */
-
-  
-/*   return */
-/* } */
 
 
 word * str_to_num(word * heap, word * num){
@@ -1744,16 +1771,16 @@ word * str_to_num(word * heap, word * num){
 void print_num(word * num){
   Object * n = (Object*)num;
   if (n->size == 1){
-    print_uint(n->contents[0], 16, 0);
+    uart_print_uint(n->contents[0], 16);
   }else if (n->size > 1){
     word last = n->contents[n->size - 1];
     if (last){
-      print_cstr("-");
+      uart_puts("-");
       num_negate(num);
     }
-    print_uint(n->contents[n->size - 2], 16, 0);
+    uart_print_uint(n->contents[n->size - 2], 16);
     for (word i = n->size - 2; i > 0; --i){
-      print_uint(n->contents[i-1], 16, sizeof(word)*2);
+      uart_padded_uint(n->contents[i-1], 16, sizeof(word)*2);
     }
     if (last){
       num_negate(num);
@@ -1763,6 +1790,8 @@ void print_num(word * num){
 
 
 word * word_to_num(word * heap, word w){
-  word buf[2] = {w, 0};
-  return object(heap, num_type, 2, buf, 2);
+  Object * obj = (Object*)object(heap, num_type, 2, 0, 0);
+  obj->contents[0] = w;
+  obj->contents[1] = 0;
+  return (word*)obj;
 }
