@@ -20,6 +20,7 @@ const word obj_sz = sizeof(Object)/sizeof(word);
 word * object(word * heap, word * type, word size, word * contents, word n_words){
   Object * obj = (Object*)0;
   if (size < n_words){return (word*)0;}
+
   word * mem = gc_alloc(heap, size + obj_sz - 1);
   if (!mem){return (word*)0;}
   obj = (Object*)(mem - 1);
@@ -166,6 +167,8 @@ void object_delete(word * heap, word * obj){
       _object_delete(heap, obj);
     }else if (!obj_cmp(type, array_type)){
       obj_array_delete(heap, obj);
+    }else if(!obj_cmp(type, function_type)){
+      _object_delete(heap, obj);
     }
   }
   object_delete(heap, type);
@@ -213,6 +216,7 @@ void set_obj_array_idx(word * arr, word idx, word * val){
 void obj_array_delete(word * heap, word * obj) {
   Object * o = (Object*)obj;
   Object * arr = (Object*)(o->contents[0]);
+  object_delete(heap, (word*)((Object*)arr)->type);
   _object_delete(heap, obj);
   if (--arr->refcount){
     return;
@@ -832,21 +836,25 @@ word avl_mem_cmp(word * n1, word * n2){
 }
 
 
-/* void _print_avl(word * tree, word space, word inc){ */
-/*   AVL_Node * node = (AVL_Node*)tree; */
-/*   if (!tree){return;} */
-/*   spc(space);print_uint(tree[0] & 3, 16, 2);//nl(1); */
-/*   spc(1);print_uint(tree[3], 16, 2);nl(1); */
-/*   //spc(1);print_uint(tree, 16, 8);nl(1); */
-/*   _print_avl((word*)(node->right), space + inc, inc); */
-/*   _print_avl((word*)(node->left), space, inc); */
-/* } */
+void _print_avl(word * tree, word space){
+  AVL_Node * node = (AVL_Node*)tree;
+  if (!tree){return;}
+  for (word i = 0; i < space; ++i){
+    uart_puts(" ");
+  }
+  uart_print_uint(tree[0] & 3, 16);//nl(1);
+  uart_puts(" ");uart_print_uint(tree[3], 16);uart_puts("\n");
+  //spc(1);print_uint(tree, 16, 8);nl(1);
+  word inc = 2;
+  _print_avl((word*)(node->right), space + inc);
+  _print_avl((word*)(node->left), space);
+}
 
 
-/* void print_avl(word * tree, word space, word inc){ */
-/*   if (!tree){print_uint(0, 16, 2);nl(1);} */
-/*   _print_avl(tree, space, inc); */
-/* } */
+void print_avl(word * tree){
+  if (!tree){uart_print_uint(0, 16);uart_puts("\n");}
+  _print_avl(tree, 0);
+}
 
 
 word * check_balance_factors(word * tr){

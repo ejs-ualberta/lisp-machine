@@ -1,5 +1,7 @@
 #include "config.h"
 
+//TODO: Generational gc
+
 const word refcount_mask = (word)-1 >> (sizeof(word) * 4);
 const word visited_mask = (word)1 << (sizeof(word) * 8 - 1);
 
@@ -180,6 +182,7 @@ word * gc_alloc(word * heap, word n){
 void free(word * heap, word * addr){
   //print_avl(heap[3], 0, 2);nl(1);
   hds * h_info = (hds*)heap;
+  //print_avl(((Object*)(h_info->gc_set))->contents[0]);uart_puts("\n\n");
   if (addr < (word*)h_info + hds_sz || addr >= (word*)h_info + h_info->heap_end){
     return;
   }

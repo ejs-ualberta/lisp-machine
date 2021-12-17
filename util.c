@@ -31,7 +31,7 @@ void uart_puts(char * s) {
 
 void uart_print_uint(word val, word base){
   uint16_t buf[65];
-  word len = uintn_to_str(buf, 65, val, base);
+  uintn_to_str(buf, 65, val, base);
   for (word i = 0; buf[i] && i < 65; ++i){
     uart_send((uint8_t)buf[i]);
   }
@@ -184,3 +184,6 @@ word arithmetic_shift_right(word val, word n){
   }
   return (val >> n) | (word)-1 << (sizeof(word)*8 - n);
 }
+
+
+void breakp(){;}

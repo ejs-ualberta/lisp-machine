@@ -3,7 +3,7 @@ OBJS = $(SRCS:.c=.o)
 CFLAGS = -Wall -ffreestanding -nostdlib -mcpu=cortex-a53+nosimd -ggdb
 
 default: all
-	qemu-system-aarch64 -M raspi3 -kernel kernel8.img -dtb "bcm2710-rpi-3-b-plus.dtb" -serial stdio #-S -gdb "tcp::1236" & #-d in_asm
+	qemu-system-aarch64 -M raspi3 -kernel kernel8.img -dtb "bcm2710-rpi-3-b-plus.dtb" -serial stdio #-S -gdb "tcp::1236" #& #-d in_asm
 	#gdb-multiarch -x .gdbinit
 all: kernel8.img clean
 kernel8.img: boot.S $(OBJS)

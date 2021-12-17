@@ -104,7 +104,7 @@ word avl_insert(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_delete(word * heap, word ** tr, word data, word (*cmp)(word*, word*));
 word avl_basic_cmp(word * n1, word * n2);
 word avl_mem_cmp(word * n1, word * n2);
-//void print_avl(word * tree, word space, word inc);
+void print_avl(word * tree);
 word * queue(word * heap);
 word * queue_push(word * heap, word * queue, word data);
 word queue_last(word * heap, word * queue);
@@ -175,7 +175,8 @@ typedef struct heap_datastructure{
 } hds;
 
 extern const word hds_sz;
-word get_mem_sz(word * addr); 
+word get_mem_sz(word * addr);
+word check_gc(word * gc_set);
 word * init_heap(word * heap_start, word heap_sz);
 word * gc_init(word * heap);
 word * alloc(word * heap, word mem_sz);
@@ -208,6 +209,7 @@ word atomic_cas(word * ptr, word cmp, word new);
 word nat_pow(word base, word exp);
 word abs(word x);
 word arithmetic_shift_right(word val, word n);
+void breakp();
 
 
 // asm.c

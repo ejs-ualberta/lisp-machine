@@ -5,7 +5,7 @@ word global_heap_size;
 word * exception_fifo;
 //TODO: memory locks for alloc/free, etc
 
-/* word kernel_code[1024];{ */
+/* word kernel_code[] = { */
 /* 0x1D7800000000000, */
 /* 0x1C68000000001B3, */
 /* 0x1CE000000000000, */
@@ -444,7 +444,7 @@ word * exception_fifo;
 /* 0x0, */
 /* }; */
 
-char * kc_ascii = "|>[#T ~>[[v1] [~>[[v2] [:v1]]]]] deadbeef";
+char * kc_ascii = "|>[#T ~>[[v1] [~>[[v2] [:v1]]]]]|>[#F ~>[[v1] [~>[[v2] [:v2]]]]]|>[nil ~>[[x] [:#T]]]|>[id ~>[[x] [:x]]]|>[cons ~>[[v1 v2] [~>[[cond][:>[:>[:cond :v1] :v2]]]]]]|>[car ~>[[lst] [:>[:lst :#T]]]]|>[cdr ~>[[lst] [:>[:lst :#F]]]]|>[sel ~>[[cond v1 v2] [:>[:>[:cons :v1 :v2] :cond]]]]|>[if ~>[[cond v1 v2] [::>[:sel :cond v1 v2]]]]|>[empty ~>[[l] [:>[:l ~>[[head] [~>[[tail] [:#F]]]]]]]]|>[concat ~>[[l1 l2][:>:>[:if :>[:empty |>[x :>[:cdr :l1]]][:id :>[:cons :>[:car :l1] :l2]][:cons :>[:car :l1] :>[:concat :x :l2]]]]]] |>[plist ~>[[l][>:>[:if :>[:empty :l] [] [:>[:car :l] :>[:plist :>[:cdr :l]]]]]]] |>[l1 :>[:cons 1 :nil]] |>[plist ~>[[l][>:>[:if :>[:empty :l] [] [:>[:car :l] :>[:plist :>[:cdr :l]]]]]]] :>[:plist :>[:concat :l1 :nil]]";
 
 void main(word * DeviceTree){
   //TODO: properly get screen size
@@ -458,15 +458,18 @@ void main(word * DeviceTree){
   word * kernel_code = array(global_heap_start, sizeof(kc_ascii), 1);
   kernel_code = array_append_str(global_heap_start, kernel_code, (char*)kc_ascii);
   extern word * run_prog(word * heap, word * machine, word * code, word code_sz);
-  Object * obj = (Object*)run_prog(global_heap_start, 0, kernel_code, array_len(kernel_code));
+  extern word * run_prog_stack(word * heap, word * machine, word * code, word code_sz);
+  Object * obj = (Object*)run_prog_stack(global_heap_start, 0, kernel_code, array_len(kernel_code));
   array_delete(global_heap_start, kernel_code);
   rec_obj_print(obj);
+  ++((Object*)obj)->refcount;
   object_delete(global_heap_start, obj);uart_puts("\n");
   gc_collect(global_heap_start);
   uart_print_uint(((hds*)global_heap_start)->gc_num_alloced, 16);uart_puts("\n");
   uart_print_uint(((hds*)global_heap_start)->true_num_alloced, 16);uart_puts("\n");
   word check_gc(word * gc_set);
   check_gc(((hds*)global_heap_start)->gc_set);
+  breakp();
 
   /* exception_fifo = concurrent_fifo(global_heap_start, 16, 16, 1); */
   /* word * fb_start = (word*)run(exception_fifo, kernel_code); */
