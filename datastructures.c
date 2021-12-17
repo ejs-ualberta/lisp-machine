@@ -167,8 +167,6 @@ void object_delete(word * heap, word * obj){
       _object_delete(heap, obj);
     }else if (!obj_cmp(type, array_type)){
       obj_array_delete(heap, obj);
-    }else if(!obj_cmp(type, function_type)){
-      _object_delete(heap, obj);
     }
   }
   object_delete(heap, type);
