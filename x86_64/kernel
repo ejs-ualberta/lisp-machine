@@ -11,7 +11,7 @@
 |>[concat ~>[[l1 l2][
     :>:>[:if 
         :>[:empty |>[x :>[:cdr :l1]]]
-        [:id :>[:cons :>[:car :l1] :l2]]
+        [:cons :>[:car :l1] :l2]
         [:cons 
             :>[:car :l1]
             :>[:concat :x :l2]]]]]]

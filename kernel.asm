@@ -1,34 +1,34 @@
 	ads r1a r1e 0
-	ads r18 r1a STACK:
+	ads r18 r1a STACK
 	ads r19 r18 0
 	ads r1b r1e 2
-	jnc r1f r1a MAIN:
+	jnc r1f r1a MAIN
 	xor r1f r1f r1f
 
-Mbox:
+Mbox
 	0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 
-exception_handler:
+exception_handler
 	ads r18 r18 2
 	str r1b r18 0
 	str r1d r18 -1
 	ldr r1d r18 -4
 	ads r1d r1d 30
 	ads r1b r1e 2
-	jnc r1f r1a uart_send:
+	jnc r1f r1a uart_send
 	ldr r1d r18 -1
 	ldr r1b r18 0
 	ads r18 r18 -2
 	exc -1
 
-mbox_call:
+mbox_call
 	ads r18 r18 3
 	str r19 r18 -2
 	ads r19 r18 -2
 	str r1 r19 1
 	str r2 r19 2
 
-	ads r1 r1a Mbox:
+	ads r1 r1a Mbox
 	shf r1 r1 -3
 	xor r2 r2 r2
 	ads r2 r2 F
@@ -59,7 +59,7 @@ mbox_call:
 	xor r1d r1 r1d
 	jnc r1d r1e -6
 
-	ldr r1d r1a Mbox:
+	ldr r1d r1a Mbox
 	shf r1d r1d 20
 	xor r1d r1d 80000000
 	jnc r1d r1e 3
@@ -74,7 +74,7 @@ mbox_call:
 	jnc r1F r1b 0
 
 
-fb_init:
+fb_init
 	ads r18 r18 4
 	str r19 r18 -3
 	ads r19 r18 -3
@@ -83,7 +83,7 @@ fb_init:
 	str r3 r19 3
 
 	xor r3 r3 r3
-	ads r1 r1a Mbox:
+	ads r1 r1a Mbox
 	ads r2 r3 8c
 	str r2 r1 0
 	ads r2 r3 8
@@ -155,7 +155,7 @@ fb_init:
 	ads r18 r18 1
 	str r1b r18 0
 	ads r1b r1e 2
-	jnc r1f r1a mbox_call:
+	jnc r1f r1a mbox_call
 	ldr r1b r18 0
 	ads r18 r18 -1
 	jnc r1d r1e 2
@@ -205,7 +205,7 @@ fb_init_cleanup
 	jnc r1F r1b 0
 
 
-uart_init:
+uart_init
 	ads r18 r18 3
 	str r19 r18 -2
 	ads r19 r18 -2
@@ -219,7 +219,7 @@ uart_init:
 	shf r1 r1 -20
 	str r1 r1d 0
 
-	ads r1d r1a Mbox:
+	ads r1d r1a Mbox
 	xor r2 r2 r2
 	ads r1 r2 24
 	str r1 r1d 0
@@ -240,7 +240,7 @@ uart_init:
 	ads r18 r18 1
 	str r1b r18 0
 	ads r1b r1e 2
-	jnc r1f r1a mbox_call:
+	jnc r1f r1a mbox_call
 	ldr r1b r18 0
 	ads r18 r18 -1
 
@@ -324,7 +324,7 @@ uart_init:
 	jnc r1F r1b 0
 
 
-uart_send:
+uart_send
 	ads r18 r18 3
 	str r19 r18 -2
 	ads r19 r18 -2
@@ -346,7 +346,7 @@ uart_send:
 	jnc r1F r1b 0
 
 
-uart_getc:
+uart_getc
 	ads r18 r18 3
 	str r19 r18 -2
 	ads r19 r18 -2
@@ -372,7 +372,7 @@ uart_getc:
 	jnc r1F r1b 0
 
 
-uart_puts:
+uart_puts
 	ads r18 r18 5
 	str r19 r18 -4
 	ads r19 r18 -4
@@ -391,7 +391,7 @@ uart_puts:
 
 	ads r3 r1d 0
 	ads r1b r1e 2
-	jnc r1f r1a uart_send:
+	jnc r1f r1a uart_send
 
 	ads r2 r2 1
 	jnc r3 r1e -9
@@ -405,7 +405,7 @@ uart_puts:
 	jnc r1F r1b 0
 
 
-get_parent:
+get_parent
 	jnc r1d r1e 2
 	jnc r1f r1b 0
 
@@ -415,7 +415,7 @@ get_parent:
 	jnc r1f r1b 0
 
 
-get_balance_factor:
+get_balance_factor
 	jnc r1d r1e 3
 	ads r1d r1d 3
 	jnc r1f r1b 0
@@ -425,7 +425,7 @@ get_balance_factor:
 	jnc r1f r1b 0
 
 
-set_balance_factor:
+set_balance_factor
 	ads r18 r18 2
 	str r19 r18 -1
 	ads r19 r18 -1
@@ -444,45 +444,45 @@ set_balance_factor:
 	jnc r1F r1b 0
 
 
-fb_init_args:	400
+fb_init_args	400
 		300
-fb_width:	0
-fb_height:	0
-fb_pitch:	0
-fb_isrgb:	0
-fb_start:	0
+fb_width	0
+fb_height	0
+fb_pitch	0
+fb_isrgb	0
+fb_start	0
 
 
-MAIN:
-	ads r1c r1a exception_handler:
+MAIN
+	ads r1c r1a exception_handler
 
 	ads r18 r18 1
 	str r1b r18 0
 	ads r1b r1e 2
-	jnc r1f r1a uart_init:
+	jnc r1f r1a uart_init
 	ldr r1b r18 0
 	ads r18 r18 -1
 
-	ads r1d r1a fb_width:
+	ads r1d r1a fb_width
 	str r1d r1d 0
-	ads r1d r1a fb_height:
+	ads r1d r1a fb_height
 	str r1d r1d 0
-	ads r1d r1a fb_pitch:
+	ads r1d r1a fb_pitch
 	str r1d r1d 0
-	ads r1d r1a fb_isrgb:
+	ads r1d r1a fb_isrgb
 	str r1d r1d 0
-	ads r1d r1a fb_start:
+	ads r1d r1a fb_start
 	str r1d r1d 0
-	ads r1d r1a fb_init_args:
+	ads r1d r1a fb_init_args
 	ads r18 r18 1
 	str r1b r18 0
 	ads r1b r1e 2
-	jnc r1f r1a fb_init:
+	jnc r1f r1a fb_init
 	ldr r1b r18 0
 	ads r18 r18 -1
 
-	ldr r1d r1a fb_start:
+	ldr r1d r1a fb_start
 
 	jnc r1f r1b 0
 
-STACK: 0
+STACK 0

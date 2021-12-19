@@ -496,6 +496,7 @@ void main(word * DeviceTree){
 
 
 void exc_handler(uint32_t type, uint32_t esr, uint32_t elr, uint32_t spsr, uint32_t far){
+  breakp();
   word s_num = (esr & ((word)-1 >> 40)) | (word)type << 32;
   concurrent_fifo_add(exception_fifo, &s_num);
 }

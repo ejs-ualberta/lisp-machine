@@ -24,27 +24,27 @@ word get_tmp_rc(word * obj) {
 }
 
 
-void _set_tmp_rc(word *obj, word val) {
+void _set_tmp_rc(word * obj, word val){
   Object * o = (Object*)obj;
   o->refcount &= refcount_mask;
   o->refcount |= val << (sizeof(word) * 4);
 }
 
 
-void set_tmp_rc(word *obj, word val) {
+void set_tmp_rc(word * obj, word val){
   Object * o = (Object*)obj;
   o->refcount &= refcount_mask | visited_mask;
   o->refcount |= val << (sizeof(word) * 4);
 }
 
 
-word visited(word *obj) {
+word visited(word * obj){
   Object * o = (Object*)obj;
   return o->refcount & visited_mask;
 }
 
 
-void set_visited(word *obj, word val){
+void set_visited(word * obj, word val){
   Object * o = (Object*)obj;
   o->refcount &= (word)-1 >> 1;
   o->refcount |= val << (sizeof(word)*8 - 1);
@@ -106,7 +106,6 @@ word * init_heap(word * heap_start, word heap_sz){
   init_types((word*)heap);
   ((Object*)heap->gc_set)->type = (word)set_type;
   ((Object*)set_type)->refcount += 1;
-
 
   return heap_start;
 }
@@ -434,6 +433,15 @@ void _gc_collect(word *heap, word *tree, word * q) {
     queue_push(heap, q, (word)data);
   }
 }
+
+
+/* void mark_tc_noq(word ** tr, word ** dest, word ** pending){ */
+/*   while(*tr){ */
+/*     word * data = (word*)((AVL_Node*)*tr)->data; */
+/*     AVL_Node * node = (AVL_Node*)_avl_delete(tr, *tr, &avl_basic_cmp); */
+/*     _avl_insert(dest, (word*)node, (word)data, &avl_basic_cmp); */
+/*   } */
+/* } */
 
 
 void gc_collect(word * heap){

@@ -155,19 +155,18 @@ void object_delete(word * heap, word * obj){
   word * type = (word*)o->type;
   if (--(o->refcount)){
     return;
-  }else{
-    if (!obj_cmp(type, num_type) || !obj_cmp(type, string_type)){
-      _object_delete(heap, obj);
-    }else if(!obj_cmp(type, set_type)){
-      set_delete(heap, obj);
-    }else if(!obj_cmp(type, cell_type) || !obj_cmp(type, function_type) || !obj_cmp(type, subarray_type)){
-      for (word i = 0; i < o->size; ++i){
-	object_delete(heap, (word*)(o->contents[i]));
-      }
-      _object_delete(heap, obj);
-    }else if (!obj_cmp(type, array_type)){
-      obj_array_delete(heap, obj);
+  }
+  if (!obj_cmp(type, num_type) || !obj_cmp(type, string_type)){
+    _object_delete(heap, obj);
+  }else if(!obj_cmp(type, set_type)){
+    set_delete(heap, obj);
+  }else if(!obj_cmp(type, cell_type) || !obj_cmp(type, function_type) || !obj_cmp(type, subarray_type)){
+    for (word i = 0; i < o->size; ++i){
+      object_delete(heap, (word*)(o->contents[i]));
     }
+    _object_delete(heap, obj);
+  }else if (!obj_cmp(type, array_type)){
+    obj_array_delete(heap, obj);
   }
   object_delete(heap, type);
 }
