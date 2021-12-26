@@ -238,7 +238,7 @@ word * compile(word * heap, word * code, word code_sz){
       ret_code |= expect_whitespace(code, code_sz, &idx);
       if (ret_code){
 	idx = instr_begin;
-	lbl_info lbl = {code + idx, prgm_ctr};
+	lbl_info lbl = {code + idx, prgm_ctr * sizeof(word)};
 	if (!array_find(lbls, lbls, (word*)&lbl, ref_eq, (word*)0)){
 	  tmp_arr = array_append(heap, lbls, (word*)&lbl);
 	  if (!tmp_arr){goto error;}
@@ -594,8 +594,8 @@ word * comp_expr(word * heap, word * val){
 word * run_expr(word * exception_fifo, word * val){
   Object * bc_obj = (Object*)obj_array_idx(val, 0);
   word * bytecode = bc_obj->contents;
-  word regs[num_regs + 1];
-  for (word i = 0; i < num_regs + 1; ++i){regs[i] = 0;}
+  static word regs[num_regs + 1];
+  regs[0] = 0;
   regs[rr] = (word)val;
   regs[sr] = exc_cont_mask;
   regs[pc] = (word)bytecode;

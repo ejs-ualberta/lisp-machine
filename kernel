@@ -1,1 +1,59 @@
-|>[#T ~>[[v1] [~>[[v2] [:v1]]]]] |>[asmf2 <>[jnc r1f r1 0]] |>[asmfn <>[xor r1d r1d r1d ads r1 r1e 10 jnc r1f r0 :asmf2 ads r1d r1d :#T jnc r1f r0 0]] :>[:asmfn]
+|[zr r0]
+|[sp r18]
+|[fp r19]
+|[bp r1a]
+|[lr r1b]
+|[ir r1c]
+|[rr r1d]
+|[pc r1e]
+|[sr r1f]
+
+|>[#T ~>[[v1] [~>[[v2] [:v1]]]]]
+|>[#F ~>[[v1] [~>[[v2] [:v2]]]]]
+
+|[Object.max_sz 0]
+|[Object.refcount 1]
+|[Object.type 2]
+|[Object.size 3]
+|[Object.contents 4]
+
+|>[call ~>[[func] [>[
+	ads :lr :pc 2
+	jnc :sr :bp :func]]]] 
+|[ret >[jnc :sr :lr 0]]
+
+|>[uart_send 0]
+
+|>[main <>[
+	ads :bp :pc 0
+	ads :sp :bp STACK
+	ads :fp :sp 0
+	ads :lr :pc 10
+	jnc :sr :bp MAIN
+	xor :sr :sr :sr
+
+Mbox
+	0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+exception_handler
+	ads :sp :sp 2
+	str :lr :sp 0
+	str :rr :sp -1
+	ldr :rr :sp -4
+	ads :rr :rr 30
+	ads :lr :pc 2
+	jnc :sr :bp :uart_send
+	ldr :rr :sp -1
+	ldr :lr :sp 0
+	ads :sp :sp -2
+	exc -1
+
+MAIN
+	ads :ir :bp exception_handler
+	ads :rr :zr :#T
+	jnc :sr :lr 0
+
+STACK 0
+]]
+
+:>[:main]

@@ -14,7 +14,7 @@
 |[Object.size 3]
 |[Object.contents 4]
 
-|>[ocall ~>[[func] [>[
+|>[call ~>[[func] [>[
 	ads :lr :pc 2
 	jnc :sr :bp :func]]]] 
 |[ret >[jnc :sr :lr 0]]
