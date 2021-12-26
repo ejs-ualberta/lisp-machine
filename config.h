@@ -20,6 +20,7 @@ extern word * subarray_type;
 extern word * set_type;
 extern word * function_type;
 extern word * cell_type;
+extern word * bcode_type;
 /* extern word * native_type; */
 /* extern word * asm_type; */
 
@@ -80,12 +81,14 @@ word * object_expand(word * heap, word * obj, word new_sz);
 void obj_print(word * obj);
 void rec_obj_print(word * obj);
 void object_delete(word * heap, word * obj);
+void o_del(word * heap, word * obj);
 word * obj_array(word * heap, word size);
 word obj_array_size(word * arr);
 void obj_array_append(word * heap, word * arr, word * data);
 word * obj_array_idx(word * arr, word idx);
 void set_obj_array_idx(word * arr, word idx, word * val);
 void obj_array_delete(word * heap, word * obj);
+word * obj_array_flatten(word * heap, word * obj);
 word * array(word * heap, word size, word item_sz);
 word * array_resize(word * heap, word * arr, word new_size);
 word * array_find(word * arr, word * start, word * item, word (*eq_fn)(word *, word *, word *), word * extra_params);
@@ -155,6 +158,7 @@ word * num_mul(word * heap, word * num1, word * num2);
 word * str_to_num(word * heap, word * num);
 void print_num(word * num);
 word * word_to_num(word * heap, word w);
+word * num_to_str(word * heap, word * num);
 
 
 // alloc.c
@@ -182,11 +186,13 @@ word * gc_init(word * heap);
 word * alloc(word * heap, word mem_sz);
 void check_heap_capacity(word * heap);
 word * gc_alloc(word * heap, word n);
+word gc_add(word * heap, word * obj);
 void free(word * heap, word * addr);
 void gc_free(word * heap, word * addr);
 word * realloc(word * heap, word * addr, word mem_sz);
 word * gc_realloc(word * heap, word * addr, word mem_sz);
 void gc_collect(word * heap);
+void gc_del_obj(word * heap, word * data);
 
 
 // util.c
@@ -195,7 +201,7 @@ char uart_getc();
 void uart_puts(char * s);
 void uart_print_uint(word val, word base);
 void uart_padded_uint(word val, word base, word padding);
-int uintn_to_str(uint16_t * buf, word buf_sz, word num, word base);
+word uintn_to_str(word * buf, word buf_sz, word num, word base);
 word max(sword x, sword y);
 word umax(word x, word y);
 word min(sword x, sword y);
@@ -214,4 +220,7 @@ void breakp();
 
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
-word run(word * exception_fifo, word * bytecode);
+void run_bc_on_regs(word * exception_fifo, word * regs, word retn_zero);
+word run(word * exception_fifo, word * bytecode, word retn_zero);
+word * comp_expr(word * heap, word * val);
+word * run_expr(word * exception_fifo, word * val);

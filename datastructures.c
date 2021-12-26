@@ -11,8 +11,8 @@ word * subarray_type;
 word * set_type;
 word * function_type;
 word * cell_type;
+word * bcode_type;
 /* word * native_type; */
-/* word * asm_type; */
 
 
 const word obj_sz = sizeof(Object)/sizeof(word);
@@ -21,7 +21,7 @@ word * object(word * heap, word * type, word size, word * contents, word n_words
   Object * obj = (Object*)0;
   if (size < n_words){return (word*)0;}
 
-  word * mem = gc_alloc(heap, size + obj_sz - 1);
+  word * mem = alloc(heap, size + obj_sz - 1);
   if (!mem){return (word*)0;}
   obj = (Object*)(mem - 1);
   obj->refcount = 0;
@@ -44,7 +44,7 @@ word * object_append_word(word * heap, word * obj, word data){
   word max_sz = o->max_sz - obj_sz;
   //print_cstr("Before: ");print_uint(o, 16, 0);nl(1);obj_print(o);nl(1);
   if (o->size >= max_sz){
-    o = (Object*)(gc_realloc(heap, obj+1, obj_sz + o->size + o->size/2 + 1) - 1);
+    o = (Object*)(realloc(heap, obj+1, obj_sz + o->size + o->size/2 + 1) - 1);
     //if ((word*)o == (word*)0x410d08){while(1);}
     if (!((word*)o+1)){return 0;}
   }
@@ -66,7 +66,7 @@ word * object_append(word * heap, word * obj, word * data){
 
 word * object_expand(word * heap, word * obj, word new_sz){
   word old_sz = ((Object*)obj)->size;
-  word * new = gc_realloc(heap, obj+1, obj_sz + new_sz) - 1;
+  word * new = realloc(heap, obj+1, obj_sz + new_sz) - 1;
   if (new && new_sz < old_sz){((Object*)new)->size = new_sz;}
   return new;
 }
@@ -113,7 +113,7 @@ void rec_obj_print(word * obj){
       rec_obj_print((word*)o1->contents[i]);
     }
     uart_puts("]");uart_puts(" ");
-  }else if (!obj_cmp((word*)o->type, num_type)){
+  }else if (!obj_cmp((word*)o->type, num_type) || !obj_cmp((word*)o->type, bcode_type)){
     print_num(obj);uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, set_type)){
     uart_puts("{");uart_puts(" ");
@@ -144,7 +144,7 @@ void rec_obj_print(word * obj){
 
 void _object_delete(word * heap, word * obj){
   //rec_obj_print(obj);nl(1);
-  gc_free(heap, obj + 1);
+  free(heap, obj + 1);
 }
 
 
@@ -156,19 +156,27 @@ void object_delete(word * heap, word * obj){
   if (--(o->refcount)){
     return;
   }
-  if (!obj_cmp(type, num_type) || !obj_cmp(type, string_type)){
+  if (!obj_cmp(type, num_type) || !obj_cmp(type, string_type) || !obj_cmp(type, bcode_type)){
     _object_delete(heap, obj);
   }else if(!obj_cmp(type, set_type)){
     set_delete(heap, obj);
-  }else if(!obj_cmp(type, cell_type) || !obj_cmp(type, function_type) || !obj_cmp(type, subarray_type)){
+  }else if(!obj_cmp(type, cell_type) || !obj_cmp(type, subarray_type)){
     for (word i = 0; i < o->size; ++i){
       object_delete(heap, (word*)(o->contents[i]));
     }
     _object_delete(heap, obj);
   }else if (!obj_cmp(type, array_type)){
     obj_array_delete(heap, obj);
+  }else if (!obj_cmp(type, function_type)){
+    return;
   }
   object_delete(heap, type);
+}
+
+
+void o_del(word * heap, word * obj){
+  ++((Object*)obj)->refcount;
+  object_delete(heap, obj);
 }
 
 
@@ -222,6 +230,26 @@ void obj_array_delete(word * heap, word * obj) {
     object_delete(heap, (word*)(arr->contents[i]));
   }
   _object_delete(heap, (word*)arr);
+}
+
+
+void _obj_array_flatten(word * heap, word * ret, word * obj){
+  word size = obj_array_size(obj);
+  for (word i = 0; i < size; ++i){
+    word * exp_i = obj_array_idx(obj, i);
+    if (!obj_cmp((word*)((Object*)exp_i)->type, array_type)){
+      _obj_array_flatten(heap, ret, exp_i);
+    }else{
+      obj_array_append(heap, ret, exp_i);
+    }
+  }
+}
+
+
+word * obj_array_flatten(word * heap, word * obj){
+  word * ret = obj_array(heap, 16);
+  _obj_array_flatten(heap, ret, obj);
+  return ret;
 }
 
 
@@ -1141,20 +1169,22 @@ void concurrent_fifo_print(word * c_fifo){
 
 void init_types(word * heap){
   string_type = cstr_to_string(heap, "str");
-  ((Object *)string_type)->type = (word)string_type;
-  ((Object *)string_type)->refcount += 2;
+  ((Object*)string_type)->type = (word)string_type;
+  ((Object*)string_type)->refcount += 2;
   num_type = cstr_to_string(heap, "num");
-  ++((Object *)num_type)->refcount;
+  ++((Object*)num_type)->refcount;
   array_type = cstr_to_string(heap, "arr");
-  ++((Object *)array_type)->refcount;
+  ++((Object*)array_type)->refcount;
   subarray_type = cstr_to_string(heap, "sar");
-  ++((Object *)subarray_type)->refcount;
+  ++((Object*)subarray_type)->refcount;
   set_type = cstr_to_string(heap, "set");
-  ++((Object *)set_type)->refcount;
+  ++((Object*)set_type)->refcount;
   function_type = cstr_to_string(heap, "fun");
-  ++((Object *)function_type)->refcount;
+  ++((Object*)function_type)->refcount;
   cell_type = cstr_to_string(heap, "cel");
-  ++((Object *)cell_type)->refcount;
+  ++((Object*)cell_type)->refcount;
+  bcode_type = cstr_to_string(heap, "bco");
+  ++((Object*)bcode_type)->refcount;
   /* word native_str[3] = {'n', 't', 'v'}; */
   /* native_type = object(heap, string_type, 3, native_str, 3); */
   /* word asm_str[3] = {'a', 's', 'm'}; */
@@ -1798,5 +1828,40 @@ word * word_to_num(word * heap, word w){
   Object * obj = (Object*)object(heap, num_type, 2, 0, 0);
   obj->contents[0] = w;
   obj->contents[1] = 0;
+  obj->size = 2;
   return (word*)obj;
+}
+
+
+word * num_to_str(word * heap, word * num){
+  Object * n = (Object*)num;
+  Object * string = (Object*)object(heap, string_type, 2*sizeof(word) * n->size + 1, 0, 0);
+  if (!string){return 0;}
+  word buf[2*sizeof(word)+1];
+  word last = n->contents[n->size - 1];
+
+  if (last){
+    string = (Object*)object_append_word(heap, (word*)string, '-');
+    num_negate(num);
+  }
+
+  word l = uintn_to_str(buf, sizeof(buf)/sizeof(word), n->contents[n->size - 2], 2*sizeof(word));
+  for (word j = 0; j < l; ++j){
+    string = (Object*)object_append_word(heap, (word*)string, buf[j]);
+  }
+  for (word i = n->size - 2; i > 0; --i){
+    l = uintn_to_str(buf, sizeof(buf)/sizeof(word), n->contents[i-1], 2*sizeof(word));
+    for (word j = l; j < 2*sizeof(word); ++j){
+      string = (Object*)object_append_word(heap, (word*)string, '0');
+    }
+    for (word j = 0; j < l; ++j){
+      string = (Object*)object_append_word(heap, (word*)string, buf[j]);
+    }
+  }
+
+  if (last){
+    num_negate(num);
+  }
+
+  return (word*)string;
 }

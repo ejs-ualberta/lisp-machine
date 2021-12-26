@@ -1,11 +1,12 @@
 #include "config.h"
+#include "kc_ascii.h"
 
 word * global_heap_start;
 word global_heap_size;
 word * exception_fifo;
 //TODO: memory locks for alloc/free, etc
 
-/* word kernel_code[] = { */
+/* word kcode[] = { */
 /* 0x1D7800000000000, */
 /* 0x1C68000000001B3, */
 /* 0x1CE000000000000, */
@@ -444,23 +445,35 @@ word * exception_fifo;
 /* 0x0, */
 /* }; */
 
-char * kc_ascii = "|>[#T ~>[[v1] [~>[[v2] [:v1]]]]]|>[#F ~>[[v1] [~>[[v2] [:v2]]]]]|>[nil ~>[[x] [:#T]]]|>[id ~>[[x] [:x]]]|>[cons ~>[[v1 v2] [~>[[cond][:>[:>[:cond :v1] :v2]]]]]]|>[car ~>[[lst] [:>[:lst :#T]]]]|>[cdr ~>[[lst] [:>[:lst :#F]]]]|>[sel ~>[[cond v1 v2] [:>[:>[:cons :v1 :v2] :cond]]]]|>[if ~>[[cond v1 v2] [::>[:sel :cond v1 v2]]]]|>[empty ~>[[l] [:>[:l ~>[[head] [~>[[tail] [:#F]]]]]]]]|>[concat ~>[[l1 l2][:>:>[:if :>[:empty |>[x :>[:cdr :l1]]][:id :>[:cons :>[:car :l1] :l2]][:cons :>[:car :l1] :>[:concat :x :l2]]]]]] |>[plist ~>[[l][>:>[:if :>[:empty :l] [] [:>[:car :l] :>[:plist :>[:cdr :l]]]]]]] |>[l1 :>[:cons 1 :nil]] |>[plist ~>[[l][>:>[:if :>[:empty :l] [] [:>[:car :l] :>[:plist :>[:cdr :l]]]]]]] :>[:plist :>[:concat :l1 :nil]]";
+
+// Pass in args in r1d, return result in r1d, return by jumping to zero (so that
+// functions that return using lr are compatible, as lr is set to 0)
+// Asm fns can call each other and lisp fns can call asm fns, but asm fns can not call lisp fns (yet)
+// although lisp functions can be used as "macros" on uncompiled asm.
+// One thing to note is that when returning from an asm fn to a lisp fn a lisp object must be returned.
+// The code in kernel.asm is no longer compatible, as asm addresses used to be word
+// aligned and now they are byte aligned.
+
+
+//kc_ascii is now in the kc_ascii file.
+uint8_t * kc_ascii = __kernel;
 
 void main(word * DeviceTree){
   //TODO: properly get screen size
   //TODO: properly get available memory
-  uart_print_uint(DeviceTree, 16);uart_puts("\n");
+  uart_puts("Device Tree: ");uart_print_uint((word)DeviceTree, 16);uart_puts("\n");
   word * conv_mem_start = (word*)&_end - ((word)&_end & 7) + 8;
   word conv_mem_sz = 1024 * 1024 * 16;
   global_heap_size = (word)(conv_mem_sz) / sizeof(word) - hds_sz;
   global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word));
 
-  word * kernel_code = array(global_heap_start, sizeof(kc_ascii), 1);
-  kernel_code = array_append_str(global_heap_start, kernel_code, (char*)kc_ascii);
-  extern word * run_prog(word * heap, word * machine, word * code, word code_sz);
-  extern word * run_prog_stack(word * heap, word * machine, word * code, word code_sz);
-  Object * obj = (Object*)run_prog_stack(global_heap_start, 0, kernel_code, array_len(kernel_code));
+  exception_fifo = concurrent_fifo(global_heap_start, 16, 16, 1);
+  word * kernel_code = array(global_heap_start, 64, 1);
+  kernel_code = array_append_str(global_heap_start, kernel_code, kc_ascii);
+  extern word * run_prog_stack(word * heap, word * exception_fifo, word * code, word code_sz);
+  word * obj = (word*)run_prog_stack(global_heap_start, exception_fifo, kernel_code, array_len(kernel_code));
   array_delete(global_heap_start, kernel_code);
+  concurrent_fifo_delete(global_heap_start, exception_fifo);
   rec_obj_print(obj);
   ++((Object*)obj)->refcount;
   object_delete(global_heap_start, obj);uart_puts("\n");
@@ -469,10 +482,12 @@ void main(word * DeviceTree){
   uart_print_uint(((hds*)global_heap_start)->true_num_alloced, 16);uart_puts("\n");
   word check_gc(word * gc_set);
   check_gc(((hds*)global_heap_start)->gc_set);
+  uart_puts("Done.\n");
   breakp();
 
   /* exception_fifo = concurrent_fifo(global_heap_start, 16, 16, 1); */
-  /* word * fb_start = (word*)run(exception_fifo, kernel_code); */
+  /* word * fb_start = (word*)run(exception_fifo, kcode, 0); */
+  /* uart_puts("Framebuffer: ");uart_print_uint(fb_start, 16);uart_puts("\n"); */
   /* concurrent_fifo_delete(global_heap_start, exception_fifo); */
   /* //array_delete(global_heap_start, kernel_code); */
 

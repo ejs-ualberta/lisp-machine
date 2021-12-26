@@ -30,7 +30,7 @@ void uart_puts(char * s) {
 
 
 void uart_print_uint(word val, word base){
-  uint16_t buf[65];
+  word buf[65];
   uintn_to_str(buf, 65, val, base);
   for (word i = 0; buf[i] && i < 65; ++i){
     uart_send((uint8_t)buf[i]);
@@ -39,7 +39,7 @@ void uart_print_uint(word val, word base){
 
 
 void uart_padded_uint(word val, word base, word padding){
-  uint16_t buf[sizeof(word)*8 + 1];
+  word buf[sizeof(word)*8 + 1];
   word max = sizeof(word)*8 + 1;
   word len = uintn_to_str(buf, max, val, base);
   for (word i = len; i < padding; ++i){
@@ -51,7 +51,7 @@ void uart_padded_uint(word val, word base, word padding){
 }
 
 
-int uintn_to_str(uint16_t * buf, word buf_sz, word num, word base){
+word uintn_to_str(word * buf, word buf_sz, word num, word base){
   if (buf_sz < 2){return -1;}
   if (num == 0){
     buf[0] = '0';

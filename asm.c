@@ -333,6 +333,7 @@ word * compile(word * heap, word * code, word code_sz){
     if (ptr){
       arr[ref_addr] |= ((lbl_info*)ptr)->addr;
     }else{
+      uart_puts("Bad label: ");uart_print_uint(ref_addr, 16);uart_puts("\n");
       goto error;
     }
   }
@@ -347,17 +348,16 @@ word * compile(word * heap, word * code, word code_sz){
   array_delete(heap, lbl_refs);
  error2:
   array_delete(heap, arr);
+  //uart_print_uint(prgm_ctr, 16);uart_puts(" ");uart_print_uint(idx, 16);uart_puts("\n");
   return 0;
 }
 
 
-word run(word * exception_fifo, word * bytecode){
-  // Add 1 so there is a secret register for immediates (to simplify the code)
-  word regs[num_regs + 1];
-  for (word i = 0; i < num_regs + 1; ++i){regs[i] = 0;}
-  regs[sr] = exc_cont_mask;
-  regs[pc] = (word)bytecode / sizeof(word);
-
+void run_bc_on_regs(word * exception_fifo, word * regs, word retn_zero){
+  // regs must be of length num_regs + 1 so there is a secret register for immediates (to simplify the code)
+  // If the program tries to jump to address 0, this function will return, which it normally only does when
+  // the execution bit is cleared. If you want to jump to zero for some reason, just do an ads pc zr -1.
+  // The functionality of returning on jump to zero can be turned off by setting retn_zero to 0. (normally 1 used)
   word arg_mask = ((word)1 << arg_size) - 1;
   word args[mx_reg_args];
   for (word i = 0; i < mx_reg_args; ++i){args[i] = 0;}
@@ -365,21 +365,22 @@ word run(word * exception_fifo, word * bytecode){
   word exc_num_sz = concurrent_fifo_item_sz(exception_fifo);
   word exc_num[exc_num_sz];
   while (regs[sr] & exc_cont_mask){
+    //uart_puts("\n");uart_print_uint(*(word*)(regs[pc] * sizeof(word)), 16);
     //void concurrent_fifo_print(word * c_fifo);
     //concurrent_fifo_print(exception_fifo);
     if (!concurrent_fifo_pop(exception_fifo, exc_num)){
       //TODO: Make stack direction configurable? Maybe in status register?
       word oldsp = regs[sp] + 1;
       regs[sp] += 1 + exc_num_sz;
-      *(word*)(sizeof(word) * regs[sp]) = regs[lr];
+      *(word*)(regs[sp]) = regs[lr];
       for (word i = 0; i < exc_num_sz; ++i){
-	*((word*)(sizeof(word) * oldsp) + i) = exc_num[i];
+	*((word*)(oldsp) + i) = exc_num[i];
       }
       regs[lr] = regs[pc];
       regs[pc] = regs[ir];
     }
 
-    word instr = *(word*)(regs[pc] * sizeof(word));
+    word instr = *(word*)(regs[pc]);
     word opcode = (instr & inst_mask) >> opcode_start;
     word n_args = instructions[opcode].n_args;
     word uses_reg = (instr & instr_uses_reg);
@@ -406,7 +407,7 @@ word run(word * exception_fifo, word * bytecode){
     //fb_print_uint(fb_start + 100, opcode, 0);
     switch (opcode){
     case acx:
-      regs[args[1]] = atomic_cas((word*)(regs[args[0]]*sizeof(word)), regs[args[1]], regs[args[2]]);
+      regs[args[1]] = atomic_cas((word*)(regs[args[0]]), regs[args[1]], regs[args[2]]);
       break;
     case ads:
       regs[args[0]] = regs[args[1]] + regs[args[2]];
@@ -455,7 +456,7 @@ word run(word * exception_fifo, word * bytecode){
       break;
     case ldr:
       ;
-      uint32_t * addr = (uint32_t*)(sizeof(word)*regs[args[1]] + sizeof(word)*regs[args[2]]);
+      uint32_t * addr = (uint32_t*)(regs[args[1]] + regs[args[2]]);
       word lower = *addr;
       word upper = (word)*(addr + 1) << 32;
       regs[args[0]] = lower | upper;
@@ -464,13 +465,14 @@ word run(word * exception_fifo, word * bytecode){
       ;
       uint32_t l = (uint32_t)regs[args[0]];
       uint32_t u = (uint32_t)(regs[args[0]] >> 32);
-      uint32_t * adr = (uint32_t*)(sizeof(word)*regs[args[1]] + sizeof(word)*regs[args[2]]);
+      uint32_t * adr = (uint32_t*)(regs[args[1]] + regs[args[2]]);
       *adr = l;
       *(adr + 1) = u;
       break;
     case jnc:
       if (regs[args[0]]){
 	regs[pc] = regs[args[1]] + regs[args[2]];
+	if (!regs[pc] && retn_zero){return;} // If the program tries to jump to null, return (so that asm functions can be the same as builtins)
 	continue;
       }
       break;
@@ -479,7 +481,7 @@ word run(word * exception_fifo, word * bytecode){
       switch(regs[args[0]]){
       case (word)-1: //eret
 	regs[pc] = regs[lr];
-	regs[lr] = *(word*)(sizeof(word*) * regs[sp]);
+	regs[lr] = *(word*)(regs[sp]);
 	regs[sp] -= 1 + exc_num_sz;
 	continue;
       case 0: asm volatile("svc #0");break;
@@ -526,9 +528,77 @@ word run(word * exception_fifo, word * bytecode){
     /* for (uint16_t * x = buf; *x; ++x){ */
     /*   uart_send(*x); */
     /* }uart_puts("\n"); */
-    ++(regs[pc]);
+    regs[pc] += sizeof(word);
   }
+}
 
+
+word run(word * exception_fifo, word * bytecode, word retn_zero){
+  // Add 1 so there is a secret register for immediates (to simplify the code)
+  word regs[num_regs + 1];
+  for (word i = 0; i < num_regs + 1; ++i){regs[i] = 0;}
+  regs[sr] = exc_cont_mask;
+  regs[pc] = (word)bytecode;
+  run_bc_on_regs(exception_fifo, regs, retn_zero);
   return regs[rr];
 }
 
+
+word * comp_expr(word * heap, word * val){
+  // Doesn't handle sets, pairs, functions, etc
+  // TODO: Make this function better. (requires a rewrite of compiler)
+  word * tmp = obj_array_flatten(heap, val);
+  word * string = object(heap, string_type, 32, 0, 0);
+  word tmp_sz = obj_array_size(tmp);
+  for (word i = 0; i < tmp_sz; ++i){
+    word * exp_i = obj_array_idx(tmp, i);
+    word * type = (word*)((Object*)exp_i)->type;
+    Object * tmp_str = (Object*)exp_i;
+
+    if (!obj_cmp(type, num_type)){
+      tmp_str = (Object*)num_to_str(heap, exp_i);
+    }else if (!obj_cmp(type, bcode_type)){
+      word * tmp_num = word_to_num(heap, (word)((Object*)exp_i)->contents);
+      tmp_str = (Object*)num_to_str(heap, tmp_num);
+      o_del(heap, tmp_num);
+    }else if (obj_cmp(type, string_type)){
+      word * tmp_num = word_to_num(heap, (word)exp_i);
+      //rec_obj_print(tmp_num);
+      tmp_str = (Object*)num_to_str(heap, tmp_num);
+      o_del(heap, tmp_num);
+    }
+
+    for (word j = 0; j < tmp_str->size; ++j){
+      string = object_append_word(heap, string, tmp_str->contents[j]);
+    }
+    string = object_append_word(heap, string, ' ');
+
+    if ((word*)tmp_str != exp_i){
+      o_del(heap, (word*)tmp_str);
+    }
+  }
+  o_del(heap, tmp);
+
+  //rec_obj_print(string);
+  word * bc = compile(heap, (word*)((Object*)string)->contents, ((Object*)string)->size);
+  o_del(heap, string);
+  word bc_sz = array_len(bc);
+  word * ret = object(heap, bcode_type, bc_sz + 1, bc, bc_sz);
+  ((Object*)ret)->contents[bc_sz] = 0;
+  ++((Object*)ret)->size;
+  array_delete(heap, bc);
+  return ret;
+}
+
+
+word * run_expr(word * exception_fifo, word * val){
+  Object * bc_obj = (Object*)obj_array_idx(val, 0);
+  word * bytecode = bc_obj->contents;
+  word regs[num_regs + 1];
+  for (word i = 0; i < num_regs + 1; ++i){regs[i] = 0;}
+  regs[rr] = (word)val;
+  regs[sr] = exc_cont_mask;
+  regs[pc] = (word)bytecode;
+  run_bc_on_regs(exception_fifo, regs, 1);
+  return (word*)regs[rr];
+}

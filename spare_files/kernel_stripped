@@ -1,0 +1,116 @@
+|[zr r0]
+|[sp r18]
+|[fp r19]
+|[bp r1a]
+|[lr r1b]
+|[ir r1c]
+|[rr r1d]
+|[pc r1e]
+|[sr r1f]
+
+|[Object.max_sz 0]
+|[Object.refcount 1]
+|[Object.type 2]
+|[Object.size 3]
+|[Object.contents 4]
+
+|>[ocall ~>[[func] [>[
+	ads :lr :pc 2
+	jnc :sr :bp :func]]]] 
+|[ret >[jnc :sr :lr 0]]
+
+>[
+	ads :bp :pc 0
+	ads :sp :bp STACK
+	ads :fp :sp 0
+	ads :lr :pc 2
+	jnc :sr :bp MAIN
+	xor :sr :sr :sr
+
+Mbox
+	0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+exception_handler
+	ads :sp :sp 2
+	str :lr :sp 0
+	str :rr :sp -1
+	ldr :rr :sp -4
+	ads :rr :rr 30
+	ads :lr :pc 2
+	jnc :sr :bp uart_send
+	ldr :rr :sp -1
+	ldr :lr :sp 0
+	ads :sp :sp -2
+	exc -1
+
+get_parent
+	jnc :rr :pc 2
+	jnc :sr :lr 0
+
+	ldr :rr :rr 0
+	shf :rr :rr 2
+	shf :rr :rr -2
+	jnc :sr :lr 0
+
+
+get_balance_factor
+	jnc :rr :pc 3
+	ads :rr :rr 3
+	jnc :sr :lr 0
+
+	ldr :rr :rr 0
+	and :rr :rr 3
+	jnc :sr :lr 0
+
+
+balance_factor
+	jnc :rr :pc 2
+	jnc :sr :lr 0
+
+	:>[:call get_balance_factor]
+	sbs :rr :rr 1
+	jnc :rr :pc 3
+	sbs :rr :rr 2
+	:ret
+	ads :rr :rr 1
+	:ret
+
+
+rev_balance_factor
+	jnc :rr :pc 3
+	ads :rr :rr 3
+	:ret
+	ads :rr :rr 1
+	jnc :rr :pc 3
+	ads :rr :rr 2
+	:ret
+	ads :rr :rr 1
+	:ret
+
+
+set_balance_factor
+	ads :sp :sp 2
+	str :fp :sp -1
+	ads :fp :sp -1
+	str r1 :fp 1
+
+	ldr r1 :rr 0
+	ldr :rr :rr 1
+	and :rr :rr 3
+	shf r1 r1 2
+	shf r1 r1 -2
+	orr :rr r1 :rr
+
+	ldr r1 :fp 1
+	ldr :fp :fp 0
+	sbs :sp :sp 2
+	jnc :sr :lr 0
+
+
+
+MAIN
+	ads :ir :bp exception_handler
+	jnc :sr :lr 0
+
+STACK 0
+]
