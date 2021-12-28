@@ -396,10 +396,11 @@ typedef struct stack_frame{
   word * old;
   word i;
   word state;
+  struct stack_frame * prev_frame;
 } StackFrame;
 
 
-StackFrame * get_frame(word * heap, word * self, word * exp, word state){
+StackFrame * get_frame(word * heap, word * self, word * exp, word state, word * prev_frame){
   StackFrame * frame = (StackFrame*)alloc(heap, sizeof(StackFrame)/sizeof(word));
   if (!frame){
     return frame;
@@ -412,26 +413,30 @@ StackFrame * get_frame(word * heap, word * self, word * exp, word state){
   frame->old = 0;
   frame->i = 0;
   frame->state = state;
+  frame->prev_frame = (StackFrame*)prev_frame;
   return frame;
 }
 
 
-void del_frame(word *heap, StackFrame *frame) {
+StackFrame * del_frame(word *heap, StackFrame *frame) {
+  StackFrame * prev = frame->prev_frame;
   free(heap, (word*)frame);
+  return prev;
 }
 
 
 enum state {cf, cf_ret, df, ef, ef_0, ef_1, ccf, nf};
 word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
-  word * stack = queue(heap);
+  word * regs = init_regs(heap, 0);
   word * ret = 0;
   word * prev = cstr_to_string(heap, "tmp_obj");
   word * main_expr = obj_array(heap, 8);
   obj_array_append(heap, main_expr, self);
   ++((Object*)main_expr)->refcount;
-  StackFrame * frame = get_frame(heap, self, main_expr, cf);
+  StackFrame * frame = get_frame(heap, self, main_expr, cf, 0);
   word * op = 0;
   while(frame){
+    //uart_puts("\nF ");uart_print_uint(frame, 16);uart_puts("\n");
     switch (frame->state){
     case cf:;
       if (obj_cmp((word*)(((Object*)frame->exp)->type), array_type)){
@@ -440,7 +445,8 @@ word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
       }
       word * slf = obj_array_idx(frame->exp, 0);
       if (!obj_cmp((word*)((Object*)slf)->type, bcode_type)){
-	ret = run_expr(exception_fifo, frame->exp); 
+	ret = run_expr(exception_fifo, regs, frame->exp);
+	breakp();
 	break;
       }
       word * _ns = (word*)((Object*)slf)->contents[f_ns];
@@ -458,8 +464,7 @@ word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
 	++((Object*)tmp_fn)->refcount;
 	frame->state = cf_ret;
 	frame->tmp = (word*)tmp_fn;
-        queue_push(heap, stack, (word)frame);
-	frame = get_frame(heap, tmp_fn, exp, ef);
+	frame = get_frame(heap, tmp_fn, exp, ef, (word*)frame);
 	continue;
       }
       ret = 0;
@@ -501,8 +506,7 @@ word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
       if ((op = (word*)queue_pop(heap, frame->op_stk))){
 	frame->old = ret;
 	++((Object*)frame->old)->refcount;
-	queue_push(heap, stack, (word)frame);
-	frame = get_frame(heap, (word*)frame->self, (word*)ret, ((Object*)set_get_value(ops, op))->contents[0]);
+	frame = get_frame(heap, (word*)frame->self, (word*)ret, ((Object*)set_get_value(ops, op))->contents[0], (word*)frame);
 	continue;
       }else{
 	obj_array_append(heap, frame->tmp, ret);
@@ -528,10 +532,9 @@ word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
       break;
     }
     //rec_obj_print(ret);uart_puts("\n");
-    del_frame(heap, frame);
-    frame = (StackFrame*)queue_pop(heap, stack);
+    frame = del_frame(heap, frame);
   }
-  free(heap, stack);
+  free(heap, regs);
   object_delete(heap, main_expr);
   return ret;
 }

@@ -220,7 +220,7 @@ void breakp();
 
 // asm.c
 word * compile(word * heap, word * code, word code_sz);
-void run_bc_on_regs(word * exception_fifo, word * regs, word retn_zero);
-word run(word * exception_fifo, word * bytecode, word retn_zero);
+word run(word * exception_fifo, word * regs, word retn_zero);
 word * comp_expr(word * heap, word * val);
-word * run_expr(word * exception_fifo, word * val);
+word * init_regs(word * heap, word * bytecode);
+word * run_expr(word * exception_fifo, word * regs, word * val);

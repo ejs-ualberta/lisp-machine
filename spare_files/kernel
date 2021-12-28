@@ -44,8 +44,7 @@ mbox_call
 	str r1 :fp 1
 	str r2 :fp 2
 
-	ads r1 :bp Mbox
-	shf r1 r1 -3
+	ads r1 :zr Mbox
 	xor r2 r2 r2
 	ads r2 r2 F
 	nor r2 r2 r2

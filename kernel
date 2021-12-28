@@ -8,8 +8,6 @@
 |[pc r1e]
 |[sr r1f]
 
-|>[#T ~>[[v1] [~>[[v2] [:v1]]]]]
-|>[#F ~>[[v1] [~>[[v2] [:v2]]]]]
 
 |[Object.max_sz 0]
 |[Object.refcount 1]
@@ -17,23 +15,54 @@
 |[Object.size 3]
 |[Object.contents 4]
 
-|>[call ~>[[func] [>[
-	ads :lr :pc 2
-	jnc :sr :bp :func]]]] 
-|[ret >[jnc :sr :lr 0]]
+|>[MBOX <>[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]]
 
-|>[uart_send 0]
+|>[#T ~>[[v1] [~>[[v2] [:v1]]]]]
+|>[#F ~>[[v1] [~>[[v2] [:v2]]]]]
+
+|>[call ~>[[func] [>[
+	ads :lr :pc 10
+	jnc :sr :bp :func]]]] 
+|>[ret >[jnc :sr :lr 0]]
+|>[return ~>[[retval] [>[
+        ads :rr :zr :retval
+	:ret
+]]]]
+
+
+|>[mbox_call <>[
+	0
+]]
+
+|>[uart_send <>[
+	ads r18 r18 3
+	str r19 r18 -2
+	ads r19 r18 -2
+	str r1 r19 1
+	str r2 r19 2
+
+	xor r1 r1 r1
+	ads r1 r1 7e40203
+	ldr r2 r1 0
+	and r2 r2 20
+	jnc r2 r1e -2
+
+	str r1d r1 -3
+
+	ldr r2 r19 2
+	ldr r1 r19 1
+	ldr r19 r19 0
+	sbs r18 r18 3
+	jnc r1F r1b 0
+]]
 
 |>[main <>[
 	ads :bp :pc 0
 	ads :sp :bp STACK
 	ads :fp :sp 0
-	ads :lr :pc 10
+	ads :lr :pc 2
 	jnc :sr :bp MAIN
 	xor :sr :sr :sr
-
-Mbox
-	0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 
 exception_handler
 	ads :sp :sp 2
@@ -42,7 +71,7 @@ exception_handler
 	ldr :rr :sp -4
 	ads :rr :rr 30
 	ads :lr :pc 2
-	jnc :sr :bp :uart_send
+	jnc :sr :zr :uart_send
 	ldr :rr :sp -1
 	ldr :lr :sp 0
 	ads :sp :sp -2
@@ -50,10 +79,18 @@ exception_handler
 
 MAIN
 	ads :ir :bp exception_handler
+	ads :sp :sp 1
+	str :lr :sp 0
+	ads :rr :zr 30
+	ads :lr :pc 2
+	jnc :sr :zr :uart_send
+	ldr :lr :sp 0
+	ads :sp :sp -1
 	ads :rr :zr :#T
 	jnc :sr :lr 0
 
-STACK 0
+STACK 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 ]]
+
 
 :>[:main]

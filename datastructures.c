@@ -113,7 +113,7 @@ void rec_obj_print(word * obj){
       rec_obj_print((word*)o1->contents[i]);
     }
     uart_puts("]");uart_puts(" ");
-  }else if (!obj_cmp((word*)o->type, num_type) || !obj_cmp((word*)o->type, bcode_type)){
+  }else if (!obj_cmp((word*)o->type, num_type)){
     print_num(obj);uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, set_type)){
     uart_puts("{");uart_puts(" ");
@@ -126,16 +126,24 @@ void rec_obj_print(word * obj){
     uart_puts(")");uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, function_type)){
     //print_set((word*)o->contents[0]);
-    uart_puts("<");uart_puts(" ");
+    uart_puts("<(");uart_puts(" ");
     rec_obj_print((word*)o->contents[1]);
     rec_obj_print((word*)o->contents[2]);
-    uart_puts(">");uart_puts(" ");
+    uart_puts(")>");uart_puts(" ");
   }else if (!obj_cmp((word*)o->type, subarray_type)){
     uart_puts("subarray [");uart_puts(" ");;
     for (word i = 0; i < o->size; ++i){
       rec_obj_print((word*)o->contents[i]);
     }
     uart_puts("]");uart_puts(" ");
+  }else if (!obj_cmp((word*)o->type, bcode_type)){
+    uart_puts("<(");
+    for (word i = 0; i < o->size; ++i){
+      uart_puts("0x");
+      uart_padded_uint(o->contents[i], 16, sizeof(word)*2);
+      uart_puts(", ");
+    }
+    uart_puts(")>");
   }else{
     uart_puts("???");uart_puts(" ");
   }
@@ -1050,9 +1058,10 @@ void ring_buf_print(word * ring_buf){
   uart_print_uint(rb->head, 16);uart_puts(" ");
   uart_print_uint(rb->tail, 16);uart_puts("\n");
   word sz = array_capacity(rb->buf);
+  word item_sz = ring_buf_item_sz(ring_buf);
   for (word i = rb->tail; i != rb->head; ++i, i %= sz){
-    for (word j = 0; j < 2; ++j){
-      uart_print_uint(rb->buf[i*2+j], 16);uart_puts(" ");
+    for (word j = 0; j < item_sz; ++j){
+      uart_print_uint(rb->buf[i*item_sz+j], 16);uart_puts(" ");
     }
   }uart_puts("\n");
 }
@@ -1112,6 +1121,7 @@ word concurrent_fifo_add(word * c_fifo, word * item){
       return 0;
   }
   // Only fail if all the buffers are full/inaccessible at the same time.
+  --(cf->tag);
   return 1;
 }
 
