@@ -31,7 +31,313 @@
 
 
 |>[mbox_call <>[
-	0
+	ads :sp :sp 3
+	str :fp :sp -2
+	ads :fp :sp -2
+	str r1 :fp 1
+	str r2 :fp 2
+
+	ads r1 :zr :MBOX
+	shf r1 r1 -3
+	xor r2 r2 r2
+	ads r2 r2 F
+	nor r2 r2 r2
+	and r1 r1 r2
+	and r2 :rr F
+	orr r1 r1 r2
+
+	ads r2 :zr 7e01710
+
+	ldr :rr r2 3
+	and :rr :rr 80000000
+	jnc :rr :pc -2
+
+	ldr :rr r2 4
+	shf :rr :rr 20
+	shf :rr :rr -20
+	orr :rr r1 :rr
+	str :rr r2 4
+
+	ldr :rr r2 3
+	and :rr :rr 40000000
+	jnc :rr :pc -2
+
+	ldr :rr r2 0
+	and :rr :rr ffffffff
+	xor :rr r1 :rr
+	jnc :rr :pc -6
+
+	ldr :rr :zr :MBOX
+	shf :rr :rr 20
+	xor :rr :rr 80000000
+	jnc :rr :pc 3
+	ads :rr :rr 1
+	jnc :sr :pc 2
+	xor :rr :rr :rr
+
+	ldr r2 :fp 2
+	ldr r1 :fp 1
+	ldr :fp :fp 0
+	sbs :sp :sp 3
+	jnc :sr :lr 0
+]]
+
+|>[fb_init <>[
+	ads :sp :sp 5
+	str :fp :sp -4
+	ads :fp :sp -4
+	str r1 :fp 1
+	str r2 :fp 2
+	str r3 :fp 3
+	str :bp :fp 4
+
+	ads :bp :pc -7
+
+	xor r3 r3 r3
+	ads r1 :zr :MBOX
+	ads r2 r3 8c
+	str r2 r1 0
+	ads r2 r3 8
+	shf r2 r2 -20
+	ads r2 r2 48003
+	str r2 r1 1
+	ldr r2 :rr 0
+	shf r2 r2 -20
+	ads r2 r2 8
+	str r2 r1 2
+	ads r2 r3 48004
+	shf r2 r2 -20
+	ldr r3 :rr 1
+	orr r2 r2 r3
+	str r2 r1 3
+	xor r3 r3 r3
+	ads r2 r3 8
+	shf r2 r2 -20
+	ads r2 r2 8
+	str r2 r1 4
+	ldr r2 :rr 0
+	ldr r3 :rr 1
+	shf r3 r3 -20
+	orr r2 r2 r3
+	str r2 r1 5
+	xor r3 r3 r3
+	ads r2 r3 8
+	shf r2 r2 -20
+	ads r2 r2 48009
+	str r2 r1 6
+	ads r2 r3 8
+	str r2 r1 7
+	ads r2 r3 48005
+	shf r2 r2 -20
+	str r2 r1 8
+	ads r2 r3 4
+	shf r2 r2 -20
+	ads r2 r2 4
+	str r2 r1 9
+	ads r2 r3 48006
+	shf r2 r2 -20
+	ads r2 r2 20
+	str r2 r1 a
+	ads r2 r3 4
+	shf r2 r2 -20
+	ads r2 r2 4
+	str r2 r1 b
+	ads r2 r3 40001
+	shf r2 r2 -20
+	ads r2 r2 1
+	str r2 r1 c
+	ads r2 r3 8
+	shf r2 r2 -20
+	ads r2 r2 8
+	str r2 r1 d
+	ads r2 r3 1000
+	str r2 r1 e
+	ads r2 r3 4
+	shf r2 r2 -20
+	ads r2 r2 40008
+	str r2 r1 f
+	ads r2 r3 4
+	str r2 r1 10
+	str r3 r1 11
+
+	ads r2 :rr 0
+	xor :rr :rr :rr
+	ads :rr :rr 8
+	ads :sp :sp 1
+	str :lr :sp 0
+	ads :lr :pc 2
+	jnc :sr :zr :mbox_call
+	ldr :lr :sp 0
+	ads :sp :sp -1
+	jnc :rr :pc 2
+	jnc :sr :bp fb_init_cleanup
+
+	ldr r3 r1 a
+	shf r3 r3 -20
+	shf r3 r3 20
+	xor r3 r3 20
+	jnc r3 :bp fb_init_cleanup
+
+	ldr r3 r1 e
+	shf r3 r3 -20
+	shf r3 r3 20
+	jnc r3 :pc 2
+	jnc :sr :bp fb_init_cleanup
+
+	and r3 r3 3fffffff
+	ads :rr r2 0
+	ldr r2 :rr 6
+	str r3 r2 0
+	ldr r2 :rr 2
+	ldr r3 r1 2
+	shf r3 r3 20
+	str r3 r2 0
+	ldr r2 :rr 3
+	ldr r3 r1 3
+	shf r3 r3 20
+	shf r3 r3 -20
+	str r3 r2 0
+	ldr r2 :rr 4
+	ldr r3 r1 10
+	shf r3 r3 20
+	str r3 r2 0
+	ldr r2 :rr 5
+	ldr r3 r1 c
+	shf r3 r3 -20
+	shf r3 r3 20
+	str r3 r2 0
+
+	ldr :rr r1 e
+	str :rr r1 e
+	ads r1 :zr :MBOX
+
+fb_init_cleanup
+	ldr :bp :fp 4
+	ldr r3 :fp 3
+	ldr r2 :fp 2
+	ldr r1 :fp 1
+	ldr :fp :fp 0
+	sbs :sp :sp 5
+	jnc :sr :lr 0
+]]
+
+|>[uart_init <>[
+	ads :sp :sp 3
+	str :fp :sp -2
+	ads :fp :sp -2
+	str r1 :fp 1
+	str r2 :fp 2
+
+	xor :rr :rr :rr
+	ads :rr :rr 7e40206
+	ldr r1 :rr 0
+	shf r1 r1 20
+	shf r1 r1 -20
+	str r1 :rr 0
+
+	ads :rr :zr :MBOX
+	xor r2 r2 r2
+	ads r1 r2 24
+	str r1 :rr 0
+	ads r1 r2 c
+	shf r1 r1 -20
+	ads r1 r1 38002
+	str r1 :rr 1
+	ads r1 r2 2
+	shf r1 r1 -20
+	ads r1 r1 8
+	str r1 :rr 2
+	ads r1 r2 3d0900
+	str r1 :rr 3
+	str r2 :rr 4
+
+	xor :rr :rr :rr
+	ads :rr :rr 8
+	ads :sp :sp 1
+	str :lr :sp 0
+	ads :lr :pc 2
+	jnc :sr :zr :mbox_call
+	ldr :lr :sp 0
+	ads :sp :sp -1
+
+	ads :rr r2 7e40000
+	ldr r1 :rr 0
+	ads r2 r2 3f000
+	shf r2 r2 -20
+	nor r2 r2 r2
+	and r1 r1 r2
+	xor r2 r2 r2
+	ads r2 r2 24000
+	shf r2 r2 -20
+	orr r1 r1 r2
+	str r1 :rr 0
+
+	xor r1 r1 r1
+	ads :rr r1 7e40012
+	ldr r1 :rr 0
+	shf r1 r1 -20
+	shf r1 r1 20
+	str r1 :rr 0
+
+	xor :rr :rr :rr
+	ads :rr :rr a0
+	ads :rr :rr -1
+	jnc :rr :pc -1
+
+	ads r1 :rr 7e40013
+	ldr :rr r1 0
+	shf :rr :rr 20
+	shf :rr :rr -20
+	ads :rr :rr c000
+	str :rr r1 0
+
+	xor :rr :rr :rr
+	ads :rr :rr a0
+	ads :rr :rr -1
+	jnc :rr :pc -1
+
+	ldr :rr r1 0
+	shf :rr :rr 20
+	shf :rr :rr -20
+	str :rr r1 0
+
+	xor :rr :rr :rr
+	ads :rr :rr 7e40208
+	ldr r1 :rr 0
+	shf r1 r1 -20
+	shf r1 r1 20
+	ads r1 r1 7ff00000000
+	str r1 :rr 0
+
+	xor :rr :rr :rr
+	ads :rr :rr 7e40204
+	ldr r1 :rr 0
+	shf r1 r1 -20
+	shf r1 r1 20
+	ads r1 r1 200000000
+	str r1 :rr 0
+
+	xor :rr :rr :rr
+	xor r1 r1 r1
+	ads :rr :rr 7e40205
+	ads r1 r1 70
+	shf r1 r1 -20
+	ads r1 r1 b
+	str r1 :rr 0
+
+	xor :rr :rr :rr
+	ads :rr :rr 7e40206
+	ldr r1 :rr 0
+	shf r1 r1 20
+	shf r1 r1 -20
+	ads r1 r1 301
+	str r1 :rr 0
+
+	ldr r2 :fp 2
+	ldr r1 :fp 1
+	ldr :fp :fp 0
+	sbs :sp :sp 3
+	jnc :sr :lr 0
 ]]
 
 |>[uart_send <>[
@@ -54,6 +360,65 @@
 	ldr r19 r19 0
 	sbs r18 r18 3
 	jnc r1F r1b 0
+]]
+
+|>[uart_getc <>[
+	ads :sp :sp 3
+	str :fp :sp -2
+	ads :fp :sp -2
+	str r1 :fp 1
+	str r2 :fp 2
+
+	xor r1 r1 r1
+	ads r1 r1 7e40203
+	ldr r2 r1 0
+	and r2 r2 10
+	jnc r2 :pc -2
+ 
+	ldr :rr r1 -3
+	and :rr :rr FFFFFFFF
+	xor r2 :rr d
+	jnc r2 :pc 2
+	sbs :rr :rr 3
+
+	ldr r2 :fp 2
+	ldr r1 :fp 1
+	ldr :fp :fp 0
+	sbs :sp :sp 3
+	jnc :sr :lr 0
+]]
+
+|>[uart_puts <>[
+	ads :sp :sp 5
+	str :fp :sp -4
+	ads :fp :sp -4
+	str r1 :fp 1
+	str r2 :fp 2
+	str r3 :fp 3
+	str :lr :fp 4
+
+	ads r1 :rr 0
+	xor r2 r2 r2
+	ldr :rr r1 r2
+	and :rr :rr FFFF
+	xor r3 :rr a
+	jnc r3 :pc 2
+	ads :rr :rr 3
+
+	ads r3 :rr 0
+	ads :lr :pc 2
+	jnc :sr :zr :uart_send
+
+	ads r2 r2 1
+	jnc r3 :pc -9
+
+	ldr :lr :fp 4
+	ldr r3 :fp 3
+	ldr r2 :fp 2
+	ldr r1 :fp 1
+	ldr :fp :fp 0
+	sbs :sp :sp 5
+	jnc :sr :lr 0
 ]]
 
 |>[main <>[
@@ -79,18 +444,44 @@ exception_handler
 
 MAIN
 	ads :ir :bp exception_handler
-	ads :sp :sp 1
-	str :lr :sp 0
-	ads :rr :zr 30
-	ads :lr :pc 2
-	jnc :sr :zr :uart_send
-	ldr :lr :sp 0
-	ads :sp :sp -1
+	ads r18 r18 1
+	str r1b r18 0
+	ads r1b r1e 2
+	jnc r1f :zr :uart_init
+	ldr r1b r18 0
+	ads r18 r18 -1
+
+	ads r1d r1a fb_width
+	str r1d r1d 0
+	ads r1d r1a fb_height
+	str r1d r1d 0
+	ads r1d r1a fb_pitch
+	str r1d r1d 0
+	ads r1d r1a fb_isrgb
+	str r1d r1d 0
+	ads r1d r1a fb_start
+	str r1d r1d 0
+	ads r1d r1a fb_init_args
+	ads r18 r18 1
+	str r1b r18 0
+	ads r1b r1e 2
+	jnc r1f :zr :fb_init
+	ldr r1b r18 0
+	ads r18 r18 -1
+
 	ads :rr :zr :#T
+
 	jnc :sr :lr 0
+
+fb_init_args	400
+		300
+fb_width	0
+fb_height	0
+fb_pitch	0
+fb_isrgb	0
+fb_start	0
 
 STACK 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 ]]
-
 
 :>[:main]

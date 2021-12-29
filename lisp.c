@@ -446,7 +446,6 @@ word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
       word * slf = obj_array_idx(frame->exp, 0);
       if (!obj_cmp((word*)((Object*)slf)->type, bcode_type)){
 	ret = run_expr(exception_fifo, regs, frame->exp);
-	breakp();
 	break;
       }
       word * _ns = (word*)((Object*)slf)->contents[f_ns];

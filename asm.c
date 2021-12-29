@@ -352,7 +352,7 @@ word * compile(word * heap, word * code, word code_sz){
 
 
 word run(word * exception_fifo, word * regs, word retn_zero){
-  // Add 1 so there is a secret register for immediates (to simplify the code)
+  // When calling, need to include an extra register so there is a secret register for immediates (to simplify the code)
   word arg_mask = ((word)1 << arg_size) - 1;
   word args[mx_reg_args];
   for (word i = 0; i < mx_reg_args; ++i){args[i] = 0;}
@@ -538,6 +538,7 @@ word run(word * exception_fifo, word * regs, word retn_zero){
 word * comp_expr(word * heap, word * val){
   // Doesn't handle sets, pairs, functions, etc
   // TODO: Make this function better. (requires a rewrite of compiler)
+  //rec_obj_print(val);uart_puts("\n\n");
   word * tmp = obj_array_flatten(heap, val);
   word * string = object(heap, string_type, 32, 0, 0);
   word tmp_sz = obj_array_size(tmp);
