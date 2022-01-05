@@ -11,6 +11,7 @@ word * eval_fn(word * heap, word * exp, word * self);
 enum function {f_ns = 0, f_args, f_exp};
 
 word * sup = 0;
+word * slf = 0;
 
 word * def = (word*)0;
 word * call = (word*)0;
@@ -255,6 +256,9 @@ word * get_val(word * obj, word * self){
     if (!s){break;}
     ns = (word*)s->contents[0];
   }
+  if (!ret && !obj_cmp(obj, slf)){
+    return self;
+  }
   return ret;
 }
 
@@ -263,10 +267,10 @@ word * call_fn(word * heap, word * args, word * self){
   if (obj_cmp((word*)((Object*)args)->type, array_type)){
     return get_val(args, self);
   }
-  word * slf = obj_array_idx(args, 0);
-  word * _ns = (word*)((Object*)slf)->contents[0];
-  word * arg_names = (word*)((Object*)slf)->contents[1];
-  word * exp = (word*)((Object*)slf)->contents[2];
+  word * _self = obj_array_idx(args, 0);
+  word * _ns = (word*)((Object*)_self)->contents[0];
+  word * arg_names = (word*)((Object*)_self)->contents[1];
+  word * exp = (word*)((Object*)_self)->contents[2];
   word a_n_len = obj_array_size(arg_names);
   word * ret = 0;
   if (obj_array_size(args) == a_n_len + 1){
@@ -345,6 +349,8 @@ word * eval_fn(word * heap, word * exp, word * self){
 word * run_prog(word * heap, word * machine, word * code, word code_sz){
   sup = cstr_to_string(heap, "sup");
   ++((Object*)sup)->refcount;
+  slf = cstr_to_string(heap, "self");
+  ++((Object*)slf)->refcount;
 
   //TODO: make these global constants.
   word * def = cstr_to_string(heap, "~");
@@ -426,13 +432,11 @@ StackFrame * del_frame(word *heap, StackFrame *frame) {
 
 
 enum state {cf, cf_ret, df, ef, ef_0, ef_1, ccf, nf};
-word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
+word * _run_prog(word * heap, word * exception_fifo, word * main_expr, word * ops){
   word * regs = init_regs(heap, 0);
   word * ret = 0;
   word * prev = cstr_to_string(heap, "tmp_obj");
-  word * main_expr = obj_array(heap, 8);
-  obj_array_append(heap, main_expr, self);
-  ++((Object*)main_expr)->refcount;
+  word * self = obj_array_idx(main_expr, 0);
   StackFrame * frame = get_frame(heap, self, main_expr, cf, 0);
   word * op = 0;
   while(frame){
@@ -443,14 +447,14 @@ word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
 	ret =  get_val(frame->exp, (word*)frame->self);
 	break;
       }
-      word * slf = obj_array_idx(frame->exp, 0);
-      if (!obj_cmp((word*)((Object*)slf)->type, bcode_type)){
+      word * _self = obj_array_idx(frame->exp, 0);
+      if (!obj_cmp((word*)((Object*)_self)->type, bcode_type)){
 	ret = run_expr(exception_fifo, regs, frame->exp);
 	break;
       }
-      word * _ns = (word*)((Object*)slf)->contents[f_ns];
-      word * arg_names = (word*)((Object*)slf)->contents[f_args];
-      word * exp = (word*)((Object*)slf)->contents[f_exp];
+      word * _ns = (word*)((Object*)_self)->contents[f_ns];
+      word * arg_names = (word*)((Object*)_self)->contents[f_args];
+      word * exp = (word*)((Object*)_self)->contents[f_exp];
       word a_n_len = obj_array_size(arg_names);
       if (obj_array_size(frame->exp) == a_n_len + 1){
 	word * _sup = set_get_value(_ns, sup);
@@ -542,6 +546,15 @@ word * _run_prog(word * heap, word * exception_fifo, word * self, word * ops){
 word * run_prog_stack(word * heap, word * exception_fifo, word * code, word code_sz){
   sup = cstr_to_string(heap, "sup");
   ++((Object*)sup)->refcount;
+  slf = cstr_to_string(heap, "self");
+  ++((Object*)slf)->refcount;
+
+  word stack_sz = 1024;
+  word * stack = alloc(heap, stack_sz);
+  if (!stack){
+    uart_puts("Not enough memory for stack.");
+    return 0;
+  }
 
   //TODO: make these global constants.
   word * def = cstr_to_string(heap, "~");
@@ -559,13 +572,22 @@ word * run_prog_stack(word * heap, word * exception_fifo, word * code, word code
   set_add_str_key(heap, ops, reduce, word_to_num(heap, (word)ef));
   set_add_str_key(heap, ops, comp, word_to_num(heap, (word)ccf));
   set_add_str_key(heap, ops, name, word_to_num(heap, (word)nf));
+
   word * exp = tokenize(heap, code, code_sz);
-  word * empty_lst = obj_array(heap, 0);
-  word * main = new_fn(heap, (word*)0, empty_lst, exp);
-  ++((Object*)main)->refcount;
-  word * ret = _run_prog(heap, exception_fifo, main, ops);
+  word * arg_lst = obj_array(heap, 8);
+  obj_array_append(heap, arg_lst, cstr_to_string(heap, "STACK"));
+  obj_array_append(heap, arg_lst, cstr_to_string(heap, "HEAP"));
+  word * main = new_fn(heap, (word*)0, arg_lst, exp);
+  word * expr = obj_array(heap, 8);
+  obj_array_append(heap, expr, main);
+  obj_array_append(heap, expr, word_to_num(heap, ((word)stack)/sizeof(word)));
+  obj_array_append(heap, expr, word_to_num(heap, ((word)heap)/sizeof(word)));
+
+  ++((Object*)expr)->refcount;
+  word * ret = _run_prog(heap, exception_fifo, expr, ops);
   ++((Object*)ret)->refcount;
-  object_delete(heap, main);
+  free(heap, stack);
+  object_delete(heap, expr);
   object_delete(heap, ops);
   gc_collect(heap);
   --((Object*)ret)->refcount;

@@ -1,4 +1,4 @@
-#define BUF_SZ 256
+#define BUF_SZ 512
 //TODO: what if large amount of stuff on stack but sp not incremented yet, then interrupt? Make label for register storage? But then no nested interrupts, but didn't really want those anyway.
 	
     .section ".text.boot"	

@@ -6,9 +6,9 @@ word global_heap_size;
 word * exception_fifo;
 //TODO: memory locks for alloc/free, etc
 
-word kcode[] = {
-0x01D7800000000000, 0x01C6800000000015, 0x01CE000000000000, 0x01DF800000000002, 0x0EFE800000000011, 0x89FFFE0000000000, 0x01C6000000000002, 0x0DDE000000000000, 0x0DEE3FFFFFFFFFFF, 0x0CEE3FFFFFFFFFFC, 0x01EF400000000030, 0x01DF800000000002, 0x0EF80000000144A0, 0x0CEE3FFFFFFFFFFF, 0x0CDE000000000000, 0x01C63FFFFFFFFFFE, 0x0FFFFFFFFFFFFFFF, 0x01E6800000000006, 0x0F00000000000001, 0x01E80000000A0BB8, 0x0EFEC00000000000, 0x0000000000000000, 0x0000000000000000,  
-};
+/* word kcode[] = { */
+/* 0x01D7800000000000, 0x01C6800000000015, 0x01CE000000000000, 0x01DF800000000002, 0x0EFE800000000011, 0x89FFFE0000000000, 0x01C6000000000002, 0x0DDE000000000000, 0x0DEE3FFFFFFFFFFF, 0x0CEE3FFFFFFFFFFC, 0x01EF400000000030, 0x01DF800000000002, 0x0EF80000000144A0, 0x0CEE3FFFFFFFFFFF, 0x0CDE000000000000, 0x01C63FFFFFFFFFFE, 0x0FFFFFFFFFFFFFFF, 0x01E6800000000006, 0x0F00000000000001, 0x01E80000000A0BB8, 0x0EFEC00000000000, 0x0000000000000000, 0x0000000000000000,   */
+/* }; */
 
 
 
@@ -28,7 +28,7 @@ void main(word * DeviceTree){
   //TODO: properly get screen size
   //TODO: properly get available memory
   uart_puts("Device Tree: ");uart_print_uint((word)DeviceTree, 16);uart_puts("\n");
-  word * conv_mem_start = (word*)&_end - ((word)&_end & 7) + 8;
+  word * conv_mem_start = (word*)&_end - ((word)&_end & (sizeof(word)-1)) + sizeof(word);
   word conv_mem_sz = 1024 * 1024 * 16;
   global_heap_size = (word)(conv_mem_sz) / sizeof(word) - hds_sz;
   global_heap_start = init_heap(conv_mem_start, conv_mem_sz / sizeof(word));

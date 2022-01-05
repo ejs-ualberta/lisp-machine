@@ -483,11 +483,11 @@ void gc_collect(word * heap){
     word * obj = (word*)((AVL_Node*)refuse)->data;
     //queue_print(q);uart_puts("\n\n");
     avl_delete(heap, &refuse, (word)obj, &avl_basic_cmp);
-    if (!obj_cmp((word*)((Object*)obj)->type, function_type)){
+    //if (!obj_cmp((word*)((Object*)obj)->type, function_type)){
       if (!avl_delete(heap, tr, (word)(obj+1), &avl_basic_cmp)){
 	--h_info->gc_num_alloced;
       }
-    }
+      //}
     object_delete(heap, (word*)((Object*)obj)->type);
     free(heap, (word*)obj + 1);
   }
@@ -519,11 +519,11 @@ void gc_del_obj(word * heap, word * data){
     word * obj = (word*)((AVL_Node*)refuse)->data;
     //queue_print(q);uart_puts("\n\n");
     avl_delete(heap, &refuse, (word)obj, &avl_basic_cmp);
-    if (!obj_cmp((word*)((Object*)obj)->type, function_type)){
+    //if (!obj_cmp((word*)((Object*)obj)->type, function_type)){
       if (!avl_delete(heap, tr, (word)(obj+1), &avl_basic_cmp)){
 	--h_info->gc_num_alloced;
       }
-    }
+      //}
     object_delete(heap, (word*)((Object*)obj)->type);
     free(heap, (word*)obj + 1);
   }

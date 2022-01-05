@@ -476,17 +476,18 @@ word * avl_find(word ** tr, word data, word (*cmp)(word*, word*)){
 
 word * avl_min_ge(word * tree, word data){
   if (!tree){return 0;}
-  word * o1 = avl_min_ge((word*)((AVL_Node*)tree)->left, data);
-  word * o2 = 0;
-  if (!o1){
-    o2 = avl_min_ge((word*)((AVL_Node*)tree)->right, data);
+
+  word * o = avl_min_ge((word*)((AVL_Node*)tree)->left, data);
+  if (o){
+    return (word*)o;
   }
 
-  if (o1){
-    return (word*)o1;
-  }else if (o2){
-    return (word*)o2;    
-  }else if (((AVL_Node*)tree)->data >= data){
+  o = avl_min_ge((word*)((AVL_Node*)tree)->right, data);
+  if (o){
+    return (word*)o;    
+  }
+
+  if (((AVL_Node*)tree)->data >= data){
     return tree;
   }
   
@@ -497,22 +498,14 @@ word * avl_min_ge(word * tree, word data){
 word * avl_rotate_left(word ** tr, word * nd){
   AVL_Node * node = (AVL_Node*)nd; 
   if (!node){return 0;} 
-  AVL_Node * parent = get_parent(node);
   AVL_Node * root = (AVL_Node*)(node->right);
-  word old_rootbf = balance_factor((word*)root);
   if (!root){return 0;}
   AVL_Node * rl_child = (AVL_Node*)(root->left);
-
-  node->right = root->left;
-  node->prev = (word)root;
-
-  root->left = (word)node;
-  root->prev = (word)parent;
-
   if (rl_child){
     rl_child->prev = (word)node | get_balance_factor((word*)rl_child);
   }
 
+  AVL_Node * parent = get_parent(node);
   if (parent){
     if (parent->left == (word)node){
       parent->left = (word)root;
@@ -523,12 +516,16 @@ word * avl_rotate_left(word ** tr, word * nd){
     *tr = (word*)root;
   }
 
+  word old_rootbf = balance_factor((word*)root);
+  node->right = root->left;
+  root->left = (word)node;
+
   if (old_rootbf){
-    node->prev |= rev_balance_factor(0);
-    root->prev |= rev_balance_factor(0);
-  } else {
-    node->prev |= rev_balance_factor(1);
-    root->prev |= rev_balance_factor(-1);
+    node->prev = (word)root | rev_balance_factor(0);
+    root->prev = (word)parent | rev_balance_factor(0);
+  }else{
+    node->prev = (word)root | rev_balance_factor(1);
+    root->prev = (word)parent | rev_balance_factor(-1);
   }
 
   return (word*)root;
@@ -538,22 +535,14 @@ word * avl_rotate_left(word ** tr, word * nd){
 word * avl_rotate_right(word ** tr, word * nd){
   AVL_Node * node = (AVL_Node*)nd; 
   if (!node){return 0;} 
-  AVL_Node * parent = get_parent(node);
   AVL_Node * root = (AVL_Node*)(node->left);
-  word old_rootbf = balance_factor((word*)root);
   if (!root){return 0;}
   AVL_Node * lr_child = (AVL_Node*)(root->right);
-
-  node->left = root->right;
-  node->prev = (word)root;
-
-  root->right = (word)node;
-  root->prev = (word)parent;
-
   if (lr_child){
     lr_child->prev = (word)node | get_balance_factor((word*)lr_child);
   }
 
+  AVL_Node * parent = get_parent(node);
   if (parent){
     if (parent->left == (word)node){
       parent->left = (word)root;
@@ -564,12 +553,16 @@ word * avl_rotate_right(word ** tr, word * nd){
     *tr = (word*)root;
   }
 
+  word old_rootbf = balance_factor((word*)root);
+  node->left = root->right;
+  root->right = (word)node;
+
   if (old_rootbf){
-    node->prev |= rev_balance_factor(0);
-    root->prev |= rev_balance_factor(0);
-  } else {
-    node->prev |= rev_balance_factor(-1);
-    root->prev |= rev_balance_factor(1);
+    node->prev = (word)root | rev_balance_factor(0);
+    root->prev = (word)parent | rev_balance_factor(0);
+  }else{
+    node->prev = (word)root | rev_balance_factor(-1);
+    root->prev = (word)parent | rev_balance_factor(1);
   }
 
   return (word*)root;
