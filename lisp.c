@@ -237,12 +237,29 @@ word * new_fn(word * heap, word * _sup, word * args, word * exp){
 
 void del_fn(word * heap, word * fn){
   word * ns = (word*)((Object*)fn)->contents[f_ns];
+  word * args = (word*)((Object*)fn)->contents[f_args];
+  word * exp = (word*)((Object*)fn)->contents[f_exp];
+
   Object * kv_pair = (Object*)set_remove_str_key(heap, ns, sup);
   word * _sup = (word*)kv_pair->contents[1];
   kv_pair->contents[1] = 0;
   object_delete(heap, (word*)kv_pair);
-  --((Object*)_sup)->refcount;
-  gc_del_obj(heap, fn);
+  if (_sup){--((Object*)_sup)->refcount;}
+
+  ((Object*)fn)->contents[f_args] = 0;
+  ((Object*)fn)->contents[f_exp] = 0;
+
+  word n = gc_del_obj(heap, fn);
+
+  if (n){
+    object_delete(heap, args);
+    object_delete(heap, exp);
+    return;
+  }
+
+  set_add_str_key(heap, ns, sup, _sup);
+  ((Object*)fn)->contents[f_args] = (word)args;
+  ((Object*)fn)->contents[f_exp] = (word)exp;
 }
 
 
@@ -253,8 +270,8 @@ word * get_val(word * obj, word * self){
   while (!ret){
     ret = set_get_value(ns, obj);
     Object * s = (Object*)set_get_value(ns, sup);
-    if (!s){break;}
-    ns = (word*)s->contents[0];
+    if (!s || obj_cmp((word*)s->type, function_type)){break;}
+    ns = (word*)s->contents[f_ns];
   }
   if (!ret && !obj_cmp(obj, slf)){
     return self;
@@ -435,7 +452,6 @@ enum state {cf, cf_ret, df, ef, ef_0, ef_1, ccf, nf};
 word * _run_prog(word * heap, word * exception_fifo, word * main_expr, word * ops){
   word * regs = init_regs(heap, 0);
   word * ret = 0;
-  word * prev = cstr_to_string(heap, "tmp_obj");
   word * self = obj_array_idx(main_expr, 0);
   StackFrame * frame = get_frame(heap, self, main_expr, cf, 0);
   word * op = 0;
@@ -475,10 +491,9 @@ word * _run_prog(word * heap, word * exception_fifo, word * main_expr, word * op
     case cf_ret:
       ++((Object*)ret)->refcount; // ret is still result
       word * result = ret;
-      del_fn(heap, prev);
       check_heap_capacity(heap);
-      prev = frame->tmp;
       --((Object*)frame->tmp)->refcount;
+      del_fn(heap, frame->tmp);
       word len = obj_array_size(result);
       if (len){
 	ret = obj_array_idx(result, len - 1);

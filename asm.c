@@ -398,7 +398,6 @@ word run(word * exception_fifo, word * regs, word retn_zero){
     }
 
     sword sh;
-    word x, y;
     //fb_print_uint(fb_start + 100, opcode, 0);
     switch (opcode){
     case acx:
@@ -417,16 +416,12 @@ word run(word * exception_fifo, word * regs, word retn_zero){
       regs[args[0]] = regs[args[1]] * regs[args[2]];
       break;
     case dvs:
-      x = (word)((sword)regs[args[1]] / (sword)regs[args[2]]);
-      y = (word)((sword)regs[args[1]] % (sword)regs[args[2]]);
-      regs[rr] = y;
-      regs[args[0]] = x;
+      regs[rr] = (word)((sword)regs[args[1]] % (sword)regs[args[2]]);
+      regs[args[0]] = (word)((sword)regs[args[1]] / (sword)regs[args[2]]);
       break;
     case dvu:
-      x = regs[args[1]] / regs[args[2]];
-      y = regs[args[1]] % regs[args[2]];
-      regs[rr] = y;
-      regs[args[0]] = x;
+      regs[rr] = regs[args[1]] % regs[args[2]];
+      regs[args[0]] = regs[args[1]] / regs[args[2]];
       break;
     case and:
       regs[args[0]] = regs[args[1]] & regs[args[2]];
@@ -587,7 +582,7 @@ word * run_expr(word * exception_fifo, word * regs, word * val){
   Object * bc_obj = (Object*)obj_array_idx(val, 0);
   word * bytecode = bc_obj->contents;
   regs[pc] = (word)bytecode / sizeof(word);
-  return run(exception_fifo, regs, 1);
+  return (word*)run(exception_fifo, regs, 1);
 }
 
 

@@ -32,7 +32,7 @@ void uart_puts(char * s) {
 void uart_print_uint(word val, word base){
   word buf[65];
   uintn_to_str(buf, 65, val, base);
-  for (word i = 0; buf[i] && i < 65; ++i){
+  for (word i = 0; i < 65 && buf[i]; ++i){
     uart_send((uint8_t)buf[i]);
   }
 }
@@ -74,15 +74,15 @@ word uintn_to_str(word * buf, word buf_sz, word num, word base){
     num /= base;
   }
 
-  buf[i--] = '\0';
   word retval = i;
+  buf[i--] = '\0';
   for (int j = 0; j < i; ++j, --i){
     uint16_t tmp = buf[j];
     buf[j] = buf[i];
     buf[i] = tmp;
   }
 
-  return retval+1;
+  return retval;
 }
 
 word max(sword x, sword y){

@@ -192,7 +192,7 @@ void gc_free(word * heap, word * addr);
 word * realloc(word * heap, word * addr, word mem_sz);
 word * gc_realloc(word * heap, word * addr, word mem_sz);
 void gc_collect(word * heap);
-void gc_del_obj(word * heap, word * data);
+word gc_del_obj(word * heap, word * data);
 
 
 // util.c

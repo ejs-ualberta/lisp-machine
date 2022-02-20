@@ -496,14 +496,14 @@ void gc_collect(word * heap){
 }
 
 
-void gc_del_obj(word * heap, word * data){
+word gc_del_obj(word * heap, word * data){
   hds * h_info = (hds*)heap;
   word * gc_set = h_info->gc_set;
   word ** tr = (word**)&((Object*)gc_set)->contents;
   word * refuse = 0;
 
   AVL_Node * node = (AVL_Node*)avl_find(tr, (word)(data+1), &avl_basic_cmp);
-  if (!node){return;}
+  if (!node){return 0;}
   word * q = queue(heap);
 
   mark_tc(heap, q, data, 1);
@@ -513,7 +513,7 @@ void gc_del_obj(word * heap, word * data){
       mark_tc(heap, q, obj, 0);
     }
   }
-  sweep(heap, data, &refuse);
+  word dead_count = sweep(heap, data, &refuse);
 
   while (refuse){
     word * obj = (word*)((AVL_Node*)refuse)->data;
@@ -528,6 +528,7 @@ void gc_del_obj(word * heap, word * data){
     free(heap, (word*)obj + 1);
   }
   free(heap, q);
+  return dead_count;
 }
 
 
